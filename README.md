@@ -14,11 +14,18 @@ It is designed for:
 - **Device-to-device relaying** (ex: phone-to-phone).
 - **Secure data transmission** (AES-CCM encryption, group-based keys).
 - **Fragmentation** of long messages into 12-byte payloads, linked via cryptographic `next` fields.
+- **Secure P2P messaging** with fragmentation and relay (ex: offline chat).
 
 Key Features:
-- **No provisioning required** (unlike Bluetooth Mesh).
+- **Easy and low provisioning**.
 - **Low complexity** (suitable for embedded and mobile devices).
 - **Anti-replay and integrity checks** (TTL, cryptographic `next`, AES-CCM tags).
+
+Not Ideal for:
+- Long-range IoT.
+- High-throughput applications.
+- Standardized, interoperable solutions.
+- Large-scale deployments with dynamic group joining.
 
 ---
 
@@ -33,35 +40,15 @@ Key Features:
 
 ---
 
-## **Quick Start**
-
-### Prerequisites
-
-- Basic knowledge of **BLE (Bluetooth Low Energy)**.
-- Familiarity with **AES-CCM encryption** and **fragmentation**.
-
-### Installation
-
-1. Clone this repository (link or ssh):
-  ```bash
-   git clone https://github.com/4surix/honeybee.git
-  ```
-2. Install dependencies (Python example):
-  ```bash
-   pip install cryptography
-  ```
-
----
-
 ## **Project Structure**
 
 ```
-bluetooth-relay-protocol/
-│─ README.md               # This file
-│─ PROTOCOL.md             # Protocol specification
-│─ IMPLEMENTATION.md       # Code examples
-│─ USAGE.md                # Usage guide
+honeybee/
+|─ README.md               # This file
+|─ PROTOCOL.md             # Protocol specification
+|─ IMPLEMENTATION.md       # Code examples
+|─ USAGE.md                # Usage guide
 |─ SECURITY.md             # Security issues
 |─ logo_honeybee.png       # Logo of the protocol
-│─ LICENSE                 # SOON
+|─ LICENSE                 # SOON
 ```
