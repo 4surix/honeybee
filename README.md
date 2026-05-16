@@ -1,6 +1,6 @@
-# HoneyBee 🐝
+<h1>HoneyBee 🐝</h1>
 
-<img align="right" width="100" height="100" src="logo_honeybee.png">
+<img align="right" width="80" height="80" src="logo_honeybee.png">
 
 **A lightweight, secure, and relay-based Bluetooth Low Energy (BLE) protocol for fragmented, anonymous, and encrypted communication between devices.**
 
@@ -24,10 +24,10 @@ Key Features:
 
 | Document                                 | Description                                                                       |
 | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| `[PROTOCOL.md](PROTOCOL.md)`             | Technical specification of the protocol (packet structure, encryption, relaying). |
-| `[IMPLEMENTATION.md](IMPLEMENTATION.md)` | Code examples (Python, Kotlin) and integration guidelines.                        |
-| `[USAGE.md](USAGE.md)`                   | Step-by-step guide for sending/receiving messages.                                |
-| `[SECURITY.md](SECURITY.md)`                   | Know security issues.                                |
+| [PROTOCOL.md](PROTOCOL.md)               | Technical specification of the protocol (packet structure, encryption, relaying). |
+| [IMPLEMENTATION.md](IMPLEMENTATION.md) | Code examples (Python, Kotlin) and integration guidelines.                        |
+| [USAGE.md](USAGE.md)                   | Step-by-step guide for sending/receiving messages.                                |
+| [SECURITY.md](SECURITY.md)                   | Know security issues.                                |
 
 ---
 
@@ -40,9 +40,9 @@ Key Features:
 
 ### Installation
 
-1. Clone this repository:
+1. Clone this repository (link or ssh):
   ```bash
-   git clone https://github.com/4surix/.git
+   git clone https://github.com/4surix/honeybee.git
   ```
 2. Install dependencies (Python example):
   ```bash
