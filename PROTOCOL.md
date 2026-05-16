@@ -33,14 +33,13 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 
 ### **2.2 Comparison with Existing Standards**
 
-
-| Feature       | This Protocol | Bluetooth Mesh | Thread    |
-| ------------- | ------------- | -------------- | --------- |
-| Provisioning  | Not required  | Required       | Required  |
-| Fragmentation | Yes (`next`)  | Yes            | Yes       |
-| Relay         | Yes           | Yes            | Yes       |
-| Compatibility | BLE 4.0+      | BLE 4.0+       | 802.15.4  |
-| Complexity    | Low           | High           | Very High |
+|            | **HoneyBee**                   | **Bluetooth Mesh**   | **Thread**              | **Zigbee**             | **LoRaWAN**                 |
+| --------------------- | ------------------------------------- | -------------------- | ----------------------- | ---------------------- | --------------------------- |
+| **Provisioning**      | Pre-shared key | Dedicated    | Certificate / PSK           | Trust Center          | OTAA/ABP               |
+| **Size Payload**     | Max 12 bytes        | Max 16 bytes                | Max 63 bytes            | Max 68 bytes                  | Max 51-222 bytes                       |
+| **Security**          | AES-CCM-128 </br> Groups             | AES-CCM-128          | AES-128 </br> DTLS      | AES-128 </br> Trust Center | AES-128 </br> E2E optionnal* |
+| **Range**            | ~30-50m _(BLE)_ </br> ~300m _(BLE LongRange)_    | ~30-50m              | ~30-50m                 | ~10-100m               | ~1-40 km                 |
+| **Latency**           | Low                 | Medium              | Low                  | Medium                | High         |
 
 
 ### **2.3 Communication Flow**
@@ -53,8 +52,8 @@ sequenceDiagram
 
     A->>B: Packet 1 (Next=0x123456, TTL=5)
     B->>C: Packet 1 (Next=0x123456, TTL=4)
-    A->>B: Packet 2 (Next=0x789ABC, TTL=5)
-    B->>C: Packet 2 (Next=0x789ABC, TTL=4)
+    A->>B: Packet 2 (Next=0x000000, TTL=5)
+    B->>C: Packet 2 (Next=0x000000, TTL=4)
     C->>C: Reconstructs message via Next
 ```
 
