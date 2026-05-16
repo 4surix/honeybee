@@ -2,7 +2,9 @@
 
 <img align="right" width="80" height="80" src="logo_honeybee.png">
 
-**A lightweight, secure, and relay-based Bluetooth Low Energy (BLE) protocol for fragmented, anonymous, and encrypted communication between devices.**
+**A lightweight, (secure?), and relay-based Bluetooth Low Energy (BLE) protocol for fragmented, anonymous, and encrypted communication between devices.**
+
+> It is an experimental protocol and not an official standard. No security checks by a specialized audit.
 
 ---
 
