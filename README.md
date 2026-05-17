@@ -27,6 +27,8 @@ Not Ideal for:
 - Standardized, interoperable solutions.
 - Large-scale deployments with dynamic group joining.
 
+<img src="diagram.png">
+
 ---
 
 ## **Documentation**
