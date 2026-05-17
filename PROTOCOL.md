@@ -71,7 +71,7 @@ sequenceDiagram
 | **Group**     | 1     | Encryption group (1-255).                          | `0x01`               |
 | **Random**    | 2     | Random number between 0 and 2^16.                  | `0xABCD`             |
 | **Counter**   | 5     | Incremente by one for each create packet.          | `0x000000000001`     |
-| **Tag**       | 5     | AES-CCM authentication tag.                        | `0xA1B2C3D4`         |
+| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`         |
 | **Encrypted** | 15    | Contains `Next (3) + Payload (12)` (encrypted).    | See below            |
 
 ### 3.2 ID
@@ -116,9 +116,9 @@ The randomly generated number serves two purposes:
 
 Incremente by one for each create packet.
 
-### 3.9 Tag (5 bytes)
+### 3.9 MIC (5 bytes)
 
-AES-CCM authentication tag.
+AES-CCM authentication tag. Message integrity check.  
 
 ### 3.10 Encrypted Payload (15 bytes)
 
@@ -147,7 +147,7 @@ IV:
   - Random: 0x0001
   - Counter: 0x0000000001
 
-Tag: 0xA1B2C3D4E5
+MIC: 0xA1B2C3D4E5
 
 Encrypted Payload:
   - Next: 0x123456 (Link to next packet)
@@ -160,9 +160,17 @@ Encrypted Payload:
 
 ### **4.1 Encryption and Authentication**
 
-- **Algorithm**: AES-CCM-128 (16-byte key).
-- **IV**: 8 bytes (`Random (2) + Counter (6)`) for uniqueness.
-- **Tag**: 4 bytes for authentication (tamper detection).
+- **Algorithm**: AES-CCM-128 (32-bytes key).
+- **IV**: 8 bytes (`Group (1) + Random (2) + Counter (5)`) for uniqueness.
+- **MIC**: 4 bytes for authentication (tamper detection).
+
+#### Initialization Vector (IV)
+
+The IV (Initialization Vector) is a pseudo-random value used to ensure that the same plaintext encrypted twice with the same key produces two different ciphertexts. This prevents replication attacks.
+
+#### Message integrity check (MIC)
+
+The MIC is used in authenticated encryption modes such as AES-CCM to verify the integrity and authenticity of the encrypted message. It allows detection of whether the message has been modified during transmission.
 
 ### 4.2 Group Management
 
@@ -176,65 +184,68 @@ Encrypted Payload:
 - **Keys**: Each group has a unique encryption key (stored by sender/receiver).
 
 #### Database
-
-**Structure**
+  
+**Structure**  
 Each field packet is stored in binary form in a file, with the following structure:
 | Field      | Bytes           | Description                     |
 |------------|-----------------|---------------------------------|
 | Group      | 1               | Identifiant of group (0-255)    |
 | Key        | 32              | Counter of packet               |
-
-**Size** : 33 bytes for each group.
-
-**Format**
+  
+**Size**  
+33 bytes for each group.  
+  
+**Format**  
 - The file is a concatenation.
 - Each group is written sequentially.
 
 ### 4.3 Fragmentation with `Next`
-
-- **Principle**:
-  - Each packet contains a 3-byte `Next` field.
-  - `Next = hash(Group + Next (next packet) + Payload (next packet))`.
-  - Last packet has `Next = 0x000000`.
-- **Reconstruction**:
-  - Receiver verifies that `Next` of the previous packet matches the hash of the current payload.
-  - If a packet is missing or modified, the chain is invalid.
-
+  
+**Principle**  
+- Each packet contains a 3-byte `Next` field.
+- `Next = hash(Group + Next (next packet) + Payload (next packet))`.
+- Last packet has `Next = 0x000000`.  
+  
+**Reconstruction**  
+- Receiver verifies that `Next` of the previous packet matches the hash of the current payload.
+- If a packet is missing or modified, the chain is invalid.
+  
 ### **4.4 Anti-Replay and Integrity**
 
 - **TTL**: Limits relay count (prevents infinite loops).
 - **Cryptographic `Next`**: Prevents packet modification/reordering.
-- **AES-CCM Tag**: Detects tampering.
+- **MIC**: Detects tampering.
 
-Save the `Group`, `Counter` and `Tag` of the packet in database for prevent paquet replay.
+Save the `Group`, `Counter` and `MIC` of the packet in database for prevent paquet replay.
 
 #### Database
-
-**Structure**
+  
+**Structure**  
 Each field packet is stored in binary form in a file, with the following structure:
 | Field      | Bytes           | Description                     |
 |------------|-----------------|---------------------------------|
 | Group      | 1               | Identifiant of group (0-255)    |
 | Counter    | 5               | Counter of packet               |
-| Tag        | 5               | Tag AES-CCM                     |
-
-**Size** : 11 bytes for each packet.
-
-**Format**
+| MIC        | 5               | Tag AES-CCM                     |
+  
+**Size**  
+11 bytes for each packet.
+  
+**Format**  
 - The file is a concatenation of packet fields.
 - Each packet is written sequentially.
-
+  
 ### 4.5 Risk of collision
 
-The probability of collision for a space of **N possible value** (here, $2^{40}$ for 40 bytes Tag) with **k packets** (here, $10^{9}$ for example) is approximated by :  
+The probability of collision for a space of **N possible value** (here, $2^{40}$ for 40 bytes MIC) with **k packets** (here, $10^{9}$ for example) is approximated by :  
   
 $P(\text{collision}) \approx 1 - e^{-k^2 / (2N)}$  
-- $N = 2^{40}$ (number of possible Tag).  
+- $N = 2^{40}$ (number of possible MIC).  
 - $k = 10^{9}$ (number of packet exchanged). 
   
 $P(\text{collision}) \approx 1 - e^{-(10^9)^2 / (2 \times 2^{40})} \approx 1 - e^{-10^{18} / 2^{41}} \approx 1 - e^{-0.00045} \approx 0.00045$  
 
-The probability of collision for a 40-bit tag ($N = 2^{40}$) with 1 billion packets ($k = 10^9$) is approximately 0.045% (1 collision every ~220,000 packets).
+The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion packets ($k = 10^9$) is approximately 0.045% (1 collision every ~220,000 packets).
 
 ---
 
@@ -246,7 +257,7 @@ The probability of collision for a 40-bit tag ($N = 2^{40}$) with 1 billion pack
   - If `TTL == 0`, do not relay.
   - Else, decrement TTL by 1.
 2. **Re-transmit the packet**:
-  - Preserve all fields (ID, Flags, Group, IV, Tag, Encrypted Payload, ...).
+  - Preserve all fields (ID, Flags, Group, IV, MIC, Encrypted Payload, ...).
 
 ---
 
@@ -267,7 +278,7 @@ The probability of collision for a 40-bit tag ($N = 2^{40}$) with 1 billion pack
 ### **6.2 Best Practices**
 
 1. **Generate unique IVs**:
-  - Use `Device Address + Random + Counter`.
+  - Use `Group + Random + Counter`.
 2. **Rotate keys regularly** (if possible):
   - Use **session keys** (time-limited).
 3. **Limit TTL**:

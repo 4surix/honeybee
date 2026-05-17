@@ -22,26 +22,37 @@ import hashlib
 
 from cryptography.hazmat.primitives.ciphers.aead import AESCCM
 
+
 # Constants
 PROTOCOL_ID = 0xAA
 PAYLOAD_SIZE = 12
 NEXT_SIZE = 3
-GROUP_KEY = os.urandom(16)  # 16-byte key for the group
-GROUP_ID = 0x12  # Example group ID
+GROUP_KEY = AESGCM.generate_key(bit_length=256) # 32-byte key
+GROUP_ID = 0x18  # Example group ID
 
-def generate_next(next_payload: bytes) -> bytes:
+def generate_next(
+    group: bytes, 
+    next_next: bytes, 
+    next_payload: bytes
+) -> bytes:
     """Generate the 3-byte 'Next' field from the next payload."""
-    hash_output = hashlib.sha256(next_payload).digest()
+    hash_output = hashlib.sha256(
+        group + next_next + next_payload
+    ).digest()
     return hash_output[:NEXT_SIZE]
 
-def encrypt_payload(key: bytes, iv: bytes, next_field: bytes, payload: bytes) -> tuple[bytes, bytes]:
+def encrypt_payload(
+    key: bytes, 
+    iv: bytes, 
+    next_field: bytes, 
+    payload: bytes
+) -> tuple[bytes, bytes]:
     """Encrypt the payload and next field using AES-CCM."""
     aesccm = AESCCM(key)
-    nonce = iv
     plaintext = next_field + payload
-    ciphertext = aesccm.encrypt(nonce, plaintext, None)
-    tag = ciphertext[-4:]  # Last 4 bytes are the tag
-    encrypted_data = ciphertext[:-4]  # Rest is encrypted data
+    ciphertext = aesccm.encrypt(iv, plaintext, None)
+    tag = ciphertext[-16:]  # Last 5 bytes are the tag
+    encrypted_data = ciphertext[:-16]  # Rest is encrypted data
     return encrypted_data, tag
 
 def create_packet(
@@ -56,32 +67,40 @@ def create_packet(
     """Create a full packet."""
     encrypted_data, tag = encrypt_payload(key, iv, next_field, payload)
     packet = bytearray()
-    packet.append(PROTOCOL_ID)  # 1 byte
-    packet.append(ttl)          # 1 byte
-    packet.append(flags)        # 1 byte
-    packet.append(group)        # 1 byte
-    packet.extend(iv)           # 8 bytes
-    packet.extend(tag)          # 4 bytes
+    packet.append(PROTOCOL_ID)     # 1 byte
+    packet.append(ttl)             # 1 byte
+    packet.append(flags)           # 1 byte
+    packet.append(group)           # 1 byte
+    packet.extend(iv)              # 7 bytes
+    packet.extend(tag[:-5])        # 5 bytes
     packet.extend(encrypted_data)  # 15 bytes (3 + 12)
     return bytes(packet)
 
 # Example usage
 if __name__ == "__main__":
     message = b"Temp:25C,Hum:60%,Press:1013hPa"
-    fragments = [message[i:i+PAYLOAD_SIZE] for i in range(0, len(message), PAYLOAD_SIZE)]
+    fragments = [
+        message[i:i+PAYLOAD_SIZE] 
+        for i in range(0, len(message), PAYLOAD_SIZE)
+    ]
 
     packets = []
     for i, fragment in enumerate(fragments):
-        next_field = b'\x00\x00\x00' if i == len(fragments) - 1 else generate_next(fragments[i+1])
-        iv = os.urandom(2) + i.to_bytes(6, byteorder='big')  # Random (2) + Counter (6)
+        next_field = (
+            b'\x00\x00\x00' if i == len(fragments) - 1 
+            else 
+                generate_next(fragments[i+1])
+        )
+        # Group (1) + Random (2) + Counter (5)
+        iv = group + os.urandom(2) + i.to_bytes(5, byteorder='big')
         packet = create_packet(
-            ttl=5,
-            flags=0x00,
-            group=GROUP_ID,
-            iv=iv,
-            next_field=next_field,
-            payload=fragment,
-            key=GROUP_KEY
+            ttl = 5,
+            flags = 0x00,
+            group = GROUP_ID,
+            iv = iv,
+            next_field = next_field,
+            payload = fragment,
+            key = GROUP_KEY
         )
         packets.append(packet)
         print(f"Packet {i+1}: {packet.hex()}")
@@ -90,13 +109,20 @@ if __name__ == "__main__":
 ### **1.3 Receiver Example**
 
 ```python
-import hashlib
+import 
+
 from cryptography.hazmat.primitives.ciphers.aead import AESCCM
+
 
 GROUP_KEY = b'\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10'  # Example key
 GROUP_ID = 0x12
 
-def decrypt_payload(key: bytes, iv: bytes, encrypted_data: bytes, tag: bytes) -> bytes:
+def decrypt_payload(
+    key: bytes, 
+    iv: bytes, 
+    encrypted_data: bytes, 
+    tag: bytes
+) -> bytes:
     """Decrypt the payload and next field using AES-CCM."""
     aesccm = AESCCM(key)
     ciphertext = encrypted_data + tag
@@ -104,8 +130,11 @@ def decrypt_payload(key: bytes, iv: bytes, encrypted_data: bytes, tag: bytes) ->
     return plaintext
 
 def verify_next(prev_next: bytes, current_payload: bytes) -> bool:
-    """Verify that the 'Next' field of the previous packet matches the current payload."""
-    expected_next = generate_next(current_payload)
+    """
+        Verify that the 'Next' field, 
+         of the previous packet matches the current payload.
+    """
+    expected_next:bytes = generate_next(current_payload)
     return prev_next == expected_next
 
 def reconstruct_message(packets: list[bytes]) -> bytes:
@@ -115,10 +144,15 @@ def reconstruct_message(packets: list[bytes]) -> bytes:
     reconstructed = b''
     for packet in packets:
         # Parse packet (simplified)
-        iv = packet[4:12]
-        tag = packet[12:16]
+        id = packet[0]
+        ttl = packet[1]
+        flags = packet[2]
+        group = packet[3]
+        random = packet[4:6]
+        counter = packet[6:11]
+        tag = packet[11:16]
         encrypted_data = packet[16:31]
-        plaintext = decrypt_payload(GROUP_KEY, iv, encrypted_data, tag)
+        plaintext:bytes = decrypt_payload(GROUP_KEY, iv, encrypted_data, tag)
         next_field = plaintext[:3]
         payload = plaintext[3:]
         reconstructed += payload
@@ -128,7 +162,7 @@ def reconstruct_message(packets: list[bytes]) -> bytes:
 if __name__ == "__main__":
     # Simulate received packets (in practice, these would come from BLE)
     packets = [...]
-    message = reconstruct_message(packets)
+    message:bytes = reconstruct_message(packets)
     print(f"Reconstructed message: {message.decode()}")
 ```
 
@@ -146,7 +180,6 @@ dependencies {
     implementation("com.google.crypto.tink:tink-android:1.10.0")  // For AES-CCM
 }
 ```
-
 
 ### **2.2 Sender Example**
 

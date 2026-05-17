@@ -56,7 +56,7 @@
 
 | Capability                | Description                                                |
 | ------------------------- | ---------------------------------------------------------- |
-| **Passive Eavesdropping** | Capture BLE packets using an SDR. |
+| **Passive Eavesdropping** | Capture BLE packets using an SDR.                          |
 | **Active Injection**      | Inject crafted packets into the network.                   |
 | **Jamming**               | Disrupt BLE communications with noise.                     |
 | **Sybil Attacks**         | Create multiple fake device identities.                    |
@@ -66,7 +66,7 @@
 
 | Goal                | Description                                          |
 | ------------------- | ---------------------------------------------------- |
-| **Authentication**  | Devices can verify the sender's identity. (maybe)           |
+| **Authentication**  | Devices can verify the sender's identity. (maybe)    |
 | **Forward Secrecy** | Compromised keys cannot decrypt past communications. |
 | **Availability**    | The network remains operational despite attacks.     |
-| **Non-Repudiation** | Senders cannot deny sending a message (maybe).    |
+| **Non-Repudiation** | Senders cannot deny sending a message (maybe).       |
