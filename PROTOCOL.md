@@ -175,6 +175,21 @@ Encrypted Payload:
 
 - **Keys**: Each group has a unique encryption key (stored by sender/receiver).
 
+#### Database
+
+**Structure**
+Each field packet is stored in binary form in a file, with the following structure:
+| Field      | Bytes           | Description                     |
+|------------|-----------------|---------------------------------|
+| Group      | 1               | Identifiant of group (0-255)    |
+| Key        | 32              | Counter of packet               |
+
+**Size** : 33 bytes for each group.
+
+**Format**
+- The file is a concatenation.
+- Each group is written sequentially.
+
 ### 4.3 Fragmentation with `Next`
 
 - **Principle**:
@@ -190,6 +205,24 @@ Encrypted Payload:
 - **TTL**: Limits relay count (prevents infinite loops).
 - **Cryptographic `Next`**: Prevents packet modification/reordering.
 - **AES-CCM Tag**: Detects tampering.
+
+Save the `Group`, `Counter` and `Tag` of the packet in database for prevent paquet replay.
+
+#### Database
+
+**Structure**
+Each field packet is stored in binary form in a file, with the following structure:
+| Field      | Bytes           | Description                     |
+|------------|-----------------|---------------------------------|
+| Group      | 1               | Identifiant of group (0-255)    |
+| Counter    | 5               | Counter of packet               |
+| Tag        | 5               | Tag AES-CCM                     |
+
+**Size** : 11 bytes for each packet.
+
+**Format**
+- The file is a concatenation of packet fields.
+- Each packet is written sequentially.
 
 ### 4.5 Risk of collision
 
