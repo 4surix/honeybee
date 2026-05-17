@@ -63,28 +63,78 @@ sequenceDiagram
 
 ### **3.1 General Format (31 bytes)**
 
-
 | Field         | Bytes | Description                                        | Example              |
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
 | **ID**        | 1     | Protocol identifier (`0xAA`).                      | `0xAA`               |
 | **TTL**       | 1     | Number of allowed relays (decremented per relay).  | `0x05`               |
-| **Flags**     | 1     | 8-bit options (ex: `0x01` = urgent).             | `0x01`               |
+| **Flags**     | 1     | 8-bit options (ex: `0x01` = urgent).               | `0x01`               |
 | **Group**     | 1     | Encryption group (1-255).                          | `0x01`               |
-| **IV**        | 8     | Initialization Vector: `Random (2) + Counter (6)`. | `0xABCD000000000001` |
-| **Tag**       | 4     | AES-CCM authentication tag.                        | `0xA1B2C3D4`         |
+| **Random**    | 2     | Random number between 0 and 2^16.                  | `0xABCD`             |
+| **Counter**   | 5     | Incremente by one for each create packet.          | `0x000000000001`     |
+| **Tag**       | 5     | AES-CCM authentication tag.                        | `0xA1B2C3D4`         |
 | **Encrypted** | 15    | Contains `Next (3) + Payload (12)` (encrypted).    | See below            |
 
+### 3.2 ID
 
-### **3.2 Encrypted Payload (15 bytes)**
+The first 8 bits of the frame. Used to identify the protocol. If the frame does not begin with `0xAA`, then the received packet uses a different protocol. You can automatically reject it.
 
+### 3.3 TTL
+
+The TTL indicates the number of times the packet must be relayed by any device. It prevents the packet from traveling too far unnecessarily.
+
+### 3.4 Flags
+
+Flags provide information about the type of packet, for example, whether it is urgent.
+
+| Bit    | Description |
+| ------ | ----------- |
+| `0x01` | Urgent      |
+| `0x02` | _Reserved_  |
+| `0x04` | _Reserved_  |
+| `0x08` | _Reserved_  |
+| `0x10` | _Reserved_  |
+| `0x20` | _Reserved_  |
+| `0x40` | _Reserved_  |
+| `0x80` | _Reserved_  |
+
+### 3.6 Group (1 byte)
+
+| Group Range | Quantity | Type                | Example Use Case   |
+| ----------- | -------- | ------------------- | ------------------ |
+| 1-15        | 15       | Reserved            | -                  |
+| 16-31       | 16       | Local Groups        | Friends, Family    |
+| 32-63       | 32       | Organization Groups | Companies, Clubs   |
+| 64-255      | 192      | Global Groups       | Regions, Countries |
+
+### 3.7 Random (1 byte)
+
+The randomly generated number serves two purposes:
+- It prevents two packets sent over the network from having the same IV if they haven't yet been synchronized to the latest value of the group's counter.
+- It prevents an attacker from predicting the next IV packet.
+
+### 3.8 Counter (5 bytes)
+
+Incremente by one for each create packet.
+
+### 3.9 Tag (5 bytes)
+
+AES-CCM authentication tag.
+
+### 3.10 Encrypted Payload (15 bytes)
 
 | Field       | Bytes | Description                                                                   |
 | ----------- | ----- | ----------------------------------------------------------------------------- |
-| **Next**    | 3     | Link to next packet: `hash(next_payload) % 2^24`. `0x000000` for last packet. |
+| **Next**    | 3     | Link to next packet: `hash(group + next_next + next_payload) % 2^24`. </br>`0x000000` for last packet. |
 | **Payload** | 12    | Actual data.                                                                  |
 
+Calculating the Next value strengthens the chain's integrity. By performing `hash(Group + Next (next packet) + Payload (next packet))` in the packet's Next value, each packet is cryptographically linked to:
+- Group (to prevent confusion between groups).
+- Next value of the following packet (to prevent packet reordering).
+- Payload of the following packet (to prevent modifications).
 
-### **3.3 Example Packet**
+Furthermore, an attacker can no longer replace a packet with one from a different group, because the Next value would be different.
+
+### **3.11 Example Packet**
 
 ```
 Header:
@@ -95,9 +145,9 @@ Header:
 
 IV:
   - Random: 0x0001
-  - Counter: 0x00000000000001
+  - Counter: 0x0000000001
 
-Tag: 0xA1B2C3D4
+Tag: 0xA1B2C3D4E5
 
 Encrypted Payload:
   - Next: 0x123456 (Link to next packet)
@@ -116,7 +166,6 @@ Encrypted Payload:
 
 ### 4.2 Group Management
 
-
 | Group Range | Quantity | Type                | Example Use Case   |
 | ----------- | -------- | ------------------- | ------------------ |
 | 1-15        | 15       | Reserved            | -                  |
@@ -130,7 +179,7 @@ Encrypted Payload:
 
 - **Principle**:
   - Each packet contains a 3-byte `Next` field.
-  - `Next = hash(next_payload) % 2^24`.
+  - `Next = hash(Group + Next (next packet) + Payload (next packet))`.
   - Last packet has `Next = 0x000000`.
 - **Reconstruction**:
   - Receiver verifies that `Next` of the previous packet matches the hash of the current payload.
@@ -141,6 +190,18 @@ Encrypted Payload:
 - **TTL**: Limits relay count (prevents infinite loops).
 - **Cryptographic `Next`**: Prevents packet modification/reordering.
 - **AES-CCM Tag**: Detects tampering.
+
+### 4.5 Risk of collision
+
+The probability of collision for a space of **N possible value** (here, $2^{40}$ for 40 bytes Tag) with **k packets** (here, $10^{9}$ for example) is approximated by :  
+  
+$P(\text{collision}) \approx 1 - e^{-k^2 / (2N)}$  
+- $N = 2^{40}$ (number of possible Tag).  
+- $k = 10^{9}$ (number of packet exchanged). 
+  
+$P(\text{collision}) \approx 1 - e^{-(10^9)^2 / (2 \times 2^{40})} \approx 1 - e^{-10^{18} / 2^{41}} \approx 1 - e^{-0.00045} \approx 0.00045$  
+
+The probability of collision for a 40-bit tag ($N = 2^{40}$) with 1 billion packets ($k = 10^9$) is approximately 0.045% (1 collision every ~220,000 packets).
 
 ---
 
