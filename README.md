@@ -1,6 +1,9 @@
 <h1>HoneyBee 🐝</h1>
 
-<img align="right" width="80" height="80" src="logo_honeybee.png">
+[![Bluetooth](https://img.shields.io/badge/-Bluetooth-0082FC?style=flat&logo=bluetooth&logoColor=white)](https://www.bluetooth.com/) 
+[![Issues open](https://img.shields.io/github/issues/4surix/honeybee)](https://github.com/4surix/honeybee/issues) 
+
+<img align="right" width="90" height="90" src="logo_honeybee.png">
 
 **A lightweight, (secure?), and relay-based Bluetooth Low Energy (BLE) protocol for fragmented, anonymous, and encrypted communication between devices.**
 
