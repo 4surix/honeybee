@@ -80,9 +80,11 @@ for i, fragment in enumerate(fragments):
 1. Receive a packet
 2. Verify its protocol ID (`0xAA`).
 3. Check TTL:
-  - If `TTL == 0`, discard the packet.
-  - Else, decrement TTL by 1.
-4. Re-transmit the packet (unchanged except for TTL).
+  - If `TTL == 0`, do not relay.
+  - Else : 
+    1. Decrement TTL by 1.
+    2. Re-transmit the packet (unchanged except for TTL).
+    3. Save the paquet in the history list.
 
 ### 3.2 Example
 

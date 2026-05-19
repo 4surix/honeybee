@@ -250,13 +250,17 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 ---
 
 ## **5. Relay Mechanism**
-
-1. **Check TTL**:
-  - If `TTL == 0`, do not relay.
-  - Else, decrement TTL by 1.
-2. **Re-transmit the packet**:
-  - Preserve all fields (ID, Flags, Group, IV, MIC, Encrypted Payload, ...).
-
+  
+Each device relays the packets it receives, if the value of the TTL has not reached zero.  
+  
+The maximum number of relays is 255. If you use this value when sending a packet, it means it will pass through 255 devices (potentially multiple times the same device). At Long Range 125 kb/s, we can reach an average distance of up to 200 meters. 255 x 200 = 51,000 meters (51 km). But sometimes, we don't need to go that far; just a few hundred meters is enough, or 1-2 km. In this case, it's advisable to use a low TTL value (10-15) to avoid unnecessarily overloading the network.  
+  
+Even if the device has already received a package, it still returns it. On the other hand, if the device has already processed a package (so in its database) then it does not reprocess it a second time.  
+  
+The relayed packages follow the same logical ELODRI as the acknowledgement mechanism.  
+  
+The last 1000 packages are kept in memory, for the `MISSING` part of the acknowledgement mechanism. 1000 packages represent 1000 x 31 bytes = 31 000 bytes = minimum 31 kb in the RAM.  
+  
 ---
 
 ## 6. Acknowledgement Mechanism
@@ -265,10 +269,13 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 
 ### Functioning
 
+#### Lost ACK
 If the ACK packet is lost, then nothing happens. Indeed, each packet is sent around the device; there are no specific intended recipients. The ACK serves to say, _"At least I received it!"_.
 
+#### ELODRI logique (Ensure Least One Device Received It)
 If after 5 minutes there is not at least one ACK indicating that the sent data has been correctly received, then the data is resent and another 5 minutes are waited. If after three attempts _(so, 15 minutes after the first send)_, the process is abandoned.
 
+#### Priority
 ACKs are processed with priority by the network (equivalent to the flag `Urgent 0x01`).
 
 ### Types
