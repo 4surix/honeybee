@@ -89,7 +89,7 @@ Flags provide information about the type of packet, for example, whether it is u
 | Bit    | Description |
 | ------ | ----------- |
 | `0x01` | Urgent      |
-| `0x02` | _Reserved_  |
+| `0x02` | Acknowledgement |
 | `0x04` | _Reserved_  |
 | `0x08` | _Reserved_  |
 | `0x10` | _Reserved_  |
@@ -251,8 +251,6 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 
 ## **5. Relay Mechanism**
 
-### **5.1 Relay Rules**
-
 1. **Check TTL**:
   - If `TTL == 0`, do not relay.
   - Else, decrement TTL by 1.
@@ -261,11 +259,77 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 
 ---
 
+## 6. Acknowledgement Mechanism
 
-## **6. Limitations and Best Practices**
+> [Acknowledgement (data networks) - Wikipedia](https://en.wikipedia.org/wiki/Acknowledgement_(data_networks))
 
-### **6.1 Limitations**
+### Functioning
 
+If the ACK packet is lost, then nothing happens. Indeed, each packet is sent around the device; there are no specific intended recipients. The ACK serves to say, _"At least I received it!"_.
+
+If after 5 minutes there is not at least one ACK indicating that the sent data has been correctly received, then the data is resent and another 5 minutes are waited. If after three attempts _(so, 15 minutes after the first send)_, the process is abandoned.
+
+ACKs are processed with priority by the network (equivalent to the flag `Urgent 0x01`).
+
+### Types
+
+| Bit    | Name | Description |
+| ------ | ----------- | ------------- |
+| `0x01` | Missing      | The receiving device did not receive the packet, or, one of the packet chain. |
+| `0x03` | Unabled      | The receiving device **cannot process** the packet. |
+| `0x07` | Denied        | The receiving device **will not process** the packet. |
+| `0x0F` | Duplicated  | The receiving device already received this packet. |
+| `0x1F` | Succeeded  | The receiving device has received the packet(s). |
+| `0x3F` | Confirmed  | The sender device confirms receipt of the successful delivery. |
+| `0x7F` | _Reserved_  | |
+| `0xFF` | _Reserved_  | |
+
+To confirm that we have received all the packets of a chain, we need to confirm with only the IV of the last packet of the chain.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DeviceX as Your device
+    participant DeviceN as Other device
+
+    DeviceN ->> DeviceX: Packet 1
+    DeviceN ->> DeviceX: Packet 2
+    DeviceN ->> DeviceX: Packet 3
+    DeviceX ->> DeviceN: ACK Packet 3
+```
+
+If we are missing a packet, we must send an ACK packet with the type `MISSING` and the IV of the missing packet.
+
+When a device receives a `MISSING`, it checks if it has the packet :
+- If it has it, it doesn't relay the `MISSING` and sends the packet.
+- If it doesn't have it, it relays the `MISSING`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DeviceX as Your device
+    participant DeviceN as Any device
+    participant DeviceY as Other device
+
+    DeviceY ->> DeviceN: Packet 1
+    DeviceY ->> DeviceN: Packet 2
+    DeviceY ->> DeviceN: Packet 3
+    DeviceN ->> DeviceX: Packet 1
+    DeviceN -->> DeviceX: Lost Packet 2
+    DeviceN ->> DeviceX: Packet 3
+    DeviceX ->> DeviceN: MISSING Packet 2
+    DeviceN ->> DeviceX: Packet 2
+```
+
+### Exemple frame
+
+![ACK](img-ack.png)
+
+---
+
+## 7. Limitations and Best Practices
+
+### **7.1 Limitations**
 
 | Limitation    | Impact                           | Solution?                                       |
 | ------------- | -------------------------------- | ---------------------------------------------- |
@@ -274,8 +338,7 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 | Latency       | Higher in Long Range (125 kbps). | Use 500 kbps if shorter range suffices.    |
 | Compatibility | Bluetooth 4.0 does not use Long Range.                             | Provide a fallback mode. |
 
-
-### **6.2 Best Practices**
+### **7.2 Best Practices**
 
 1. **Generate unique IVs**:
   - Use `Group + Random + Counter`.
@@ -290,8 +353,7 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 
 ---
 
-## **7. Glossary**
-
+## **8. Glossary**
 
 | Term        | Definition                                                                   |
 | ----------- | ---------------------------------------------------------------------------- |
