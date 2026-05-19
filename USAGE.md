@@ -4,17 +4,18 @@ This guide explains how to **send, receive, and relay messages** using the proto
 
 ---
 
-## **1. Sending a Message**
+## **1. Sending data**
 
 ### **1.1 Steps**
 
-1. Split the message into 12-byte fragments.
+1. Split the data into 12-byte fragments.
 2. For each fragment:
-  - Compute `Next = (group + next_next + next_payload) % 2^24`. 
+  - **Generate unique IVs**: Use `Group + Random + Counter`.
+  - Compute: `Next = (group + next_next + next_payload) % 2^24`. 
   For the last `Next = 0`.
   - Encrypt the fragment with AES-CCM (unique IV, group key).
 3. Send packets with:
-  - `TTL` (ex: 5 for local relaying).
+  - `TTL` (put a value that corresponds to the need.).
   - `Flags` (ex: `0x01` for urgent).
   - `Group` (ex: `0x18` for a local group).
 
@@ -65,11 +66,12 @@ for i, fragment in enumerate(fragments):
 1. Receive a packet.
 2. Verify its protocol ID (`0xAA`).
 3. Verify its AES-CCM MIC.
-4. **If `Next != 0x000000`**:
-  - Store the packet and wait for the next one with the matching `Next` field.
-5. **If `Next == 0x000000`**:
-  - Reconstruct the message by chaining packets via `Next`.
-  - Verify the integrity of each packet (via `Next` and MIC).
+4. Always check that `Next` of the previous packet matches the current payload's hash.
+  - **If `Next != 0x000000`**:
+    Store the packet and wait for the next one with the matching `Next` field.
+  - **If `Next == 0x000000`**:
+    Reconstruct the message by chaining packets via `Next`.
+    Verify the integrity of each packet via `Next` _(always check that `Next` of the previous packet matches the current payload's hash)_ and MIC.
 
 ---
 

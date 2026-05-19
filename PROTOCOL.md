@@ -1,8 +1,17 @@
 # Protocol Specification
 
+1. [Introduction](#intro)
+2. [Protocol Overview](#overview)
+3. [Packet Structure](#structure)
+4. [Security Mechanims](#security)
+5. [Acknowledgement Mechanism](#acknowledgement)
+6. [Relay Mechanism](#relay)
+7. [Limitations](#limitations)
+8. [Glossary](#glossary)
+
 ---
 
-## **1. Introduction**
+## **1. Introduction** {#intro}
 
 ### **1.1 Purpose**
 
@@ -19,7 +28,7 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 
 ---
 
-## **2. Protocol Overview**
+## **2. Protocol Overview** {#overview}
 
 ### **2.1 Key Concepts**
 
@@ -59,7 +68,7 @@ sequenceDiagram
 
 ---
 
-## **3. Packet Structure**
+## **3. Packet Structure** {#structure}
 
 ### **3.1 General Format (31 bytes)**
 
@@ -156,7 +165,7 @@ Encrypted Payload:
 
 ---
 
-## **4. Security Mechanisms**
+## **4. Security Mechanisms** {#security}
 
 ### **4.1 Encryption and Authentication**
 
@@ -249,7 +258,7 @@ The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion pack
 
 ---
 
-## **5. Relay Mechanism**
+## **5. Relay Mechanism** {#relay}
   
 Each device relays the packets it receives, if the value of the TTL has not reached zero.  
   
@@ -263,7 +272,7 @@ The last 1000 packages are kept in memory, for the `MISSING` part of the acknowl
   
 ---
 
-## 6. Acknowledgement Mechanism
+## 6. Acknowledgement Mechanism {#acknowledgement}
 
 > [Acknowledgement (data networks) - Wikipedia](https://en.wikipedia.org/wiki/Acknowledgement_(data_networks))
 
@@ -330,13 +339,11 @@ sequenceDiagram
 
 ### Exemple frame
 
-![ACK](img-ack.png)
+![ACK](img-frame-ack.png)
 
 ---
 
-## 7. Limitations and Best Practices
-
-### **7.1 Limitations**
+## 7. Limitations {#limitations}
 
 | Limitation    | Impact                           | Solution?                                       |
 | ------------- | -------------------------------- | ---------------------------------------------- |
@@ -345,22 +352,9 @@ sequenceDiagram
 | Latency       | Higher in Long Range (125 kbps). | Use 500 kbps if shorter range suffices.    |
 | Compatibility | Bluetooth 4.0 does not use Long Range.                             | Provide a fallback mode. |
 
-### **7.2 Best Practices**
-
-1. **Generate unique IVs**:
-  - Use `Group + Random + Counter`.
-2. **Rotate keys regularly** (if possible):
-  - Use **session keys** (time-limited).
-3. **Limit TTL**:
-  - Avoid infinite loops (ex: TTL = max 10-15).
-4. **Validate `Next`**:
-  - Always check that `Next` of the previous packet matches the current payload's hash.
-5. **Test in real conditions**:
-  - Verify range and power consumption.
-
 ---
 
-## **8. Glossary**
+## **8. Glossary** {#glossary}
 
 | Term        | Definition                                                                   |
 | ----------- | ---------------------------------------------------------------------------- |
