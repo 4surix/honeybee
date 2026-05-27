@@ -6,8 +6,6 @@
 4. [Security Mechanims](#security)
 5. [Acknowledgement Mechanism](#acknowledgement)
 6. [Relay Mechanism](#relay)
-7. [Limitations](#limitations)
-8. [Glossary](#glossary)
 
 ---
 
@@ -19,7 +17,7 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 
 - **Relay-based communication** between devices (ex: phone-to-phone).
 - **Fragmented data transmission** (12-byte payloads linked via `next` fields).
-- **Secure and anonymous** messaging (AES-CCM encryption, group keys, integrity checks).
+- **Secure and anonymous** messaging (AES-CCM encryption, channel keys, integrity checks).
 
 ### **1.2 Prerequisites**
 
@@ -30,13 +28,13 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 
 ## **2. Protocol Overview** {#overview}
 
-### **2.1 Key Concepts**
+### **2.1 Resume**
 
 | Concept           | Description                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------- |
 | **Relay**         | Devices can relay packets to others, up to a **TTL (Time To Live)** limit.              |
-| **Fragmentation** | Long messages are split into **12-byte payloads**, linked via a `next` field (3 bytes). |
-| **Groups**        | Packets belong to a **group** (1 byte), each with a unique encryption key.              |
+| **Fragmentation** | Long messages are split into **10-byte payloads**, linked via a `next` field (2 bytes). |
+| **Channel**        | Packets belong to a **channel** (3 byte), each with a unique encryption key.              |
 | **Security**      | **AES-CCM-128** encryption, unique **IV**, and cryptographic `next` for integrity.      |
 
 
@@ -45,8 +43,8 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 |            | **HoneyBee**                   | **Bluetooth Mesh**   | **Thread**              | **Zigbee**             | **LoRaWAN**                 |
 | --------------------- | ------------------------------------- | -------------------- | ----------------------- | ---------------------- | --------------------------- |
 | **Provisioning**      | Pre-shared key | Dedicated    | Certificate / PSK           | Trust Center          | OTAA/ABP               |
-| **Size Payload**     | Max 12 bytes        | Max 16 bytes                | Max 63 bytes            | Max 68 bytes                  | Max 51-222 bytes                       |
-| **Security**          | AES-CCM-128 </br> Groups             | AES-CCM-128          | AES-128 </br> DTLS      | AES-128 </br> Trust Center | AES-128 </br> E2E optionnal* |
+| **Size Payload**     | Max 10 bytes        | Max 16 bytes                | Max 63 bytes            | Max 68 bytes                  | Max 51-222 bytes                       |
+| **Security**          | AES-CCM-128 </br> Channels             | AES-CCM-128          | AES-128 </br> DTLS      | AES-128 </br> Trust Center | AES-128 </br> E2E optionnal* |
 | **Range**            | ~30-50m _(BLE)_ </br> ~300m _(BLE LongRange)_    | ~30-50m              | ~30-50m                 | ~10-100m               | ~1-40 km                 |
 | **Latency**           | Low                 | Medium              | Low                  | Medium                | High         |
 
@@ -59,10 +57,10 @@ sequenceDiagram
     participant B as Device B
     participant C as Device C
 
-    A->>B: Packet 1 (Next=0x123456, TTL=5)
-    B->>C: Packet 1 (Next=0x123456, TTL=4)
-    A->>B: Packet 2 (Next=0x000000, TTL=5)
-    B->>C: Packet 2 (Next=0x000000, TTL=4)
+    A->>B: Packet 1 (Next=0x1234, TTL=5)
+    B->>C: Packet 1 (Next=0x1234, TTL=4)
+    A->>B: Packet 2 (Next=0x0000, TTL=5)
+    B->>C: Packet 2 (Next=0x0000, TTL=4)
     C->>C: Reconstructs message via Next
 ```
 
@@ -70,43 +68,71 @@ sequenceDiagram
 
 ## **3. Packet Structure** {#structure}
 
-### **3.1 General Format (31 bytes)**
+<img src="img-frame.png">
+
+### 3.0 Common Format (3 bytes)
 
 | Field         | Bytes | Description                                        | Example              |
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
 | **ID**        | 1     | Protocol identifier (`0xAA`).                      | `0xAA`               |
 | **TTL**       | 1     | Number of allowed relays (decremented per relay).  | `0x05`               |
-| **Flags**     | 1     | 8-bit options (ex: `0x01` = urgent).               | `0x01`               |
-| **Group**     | 1     | Encryption group (1-255).                          | `0x01`               |
-| **Random**    | 2     | Random number between 0 and 2^16.                  | `0xABCD`             |
-| **Counter**   | 5     | Incremente by one for each create packet.          | `0x000000000001`     |
-| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`         |
-| **Encrypted** | 15    | Contains `Next (3) + Payload (12)` (encrypted).    | See below            |
+| **Type**     | 1     | Type of the packet.               | `0x01`               |
 
-### 3.2 ID
+#### 3.0.1 ID
 
 The first 8 bits of the frame. Used to identify the protocol. If the frame does not begin with `0xAA`, then the received packet uses a different protocol. You can automatically reject it.
 
-### 3.3 TTL
+#### 3.0.2 TTL
 
 The TTL indicates the number of times the packet must be relayed by any device. It prevents the packet from traveling too far unnecessarily.
 
-### 3.4 Flags
+#### 3.0.3 Type
 
-Flags provide information about the type of packet, for example, whether it is urgent.
+Type provide information about the type of packet?
 
 | Bit    | Description |
 | ------ | ----------- |
-| `0x01` | Urgent      |
-| `0x02` | Acknowledgement |
-| `0x04` | _Reserved_  |
-| `0x08` | _Reserved_  |
-| `0x10` | _Reserved_  |
-| `0x20` | _Reserved_  |
-| `0x40` | _Reserved_  |
-| `0x80` | _Reserved_  |
+| `0x01` | Informations      |
+| `0x03` | Neighbor |
+| `0x07` | Message  |
+| `0x0F` | ACK  |
+| `0x1F` | _Reserved_  |
+| `0x3F` | _Reserved_  |
+| `0x7F` | _Reserved_  |
+| `0xFF` | _Reserved_  |
 
-### 3.6 Group (1 byte)
+### **3.1 Informations Format (31 bytes)**
+
+| Field         | Bytes | Description                                        | Example              |
+| ------------- | ----- | -------------------------------------------------- | -------------------- |
+| **Sender**   | 3     | Identifiant of the sender.          | `0x123456`     |
+| **Role**     | 1     | Primary `0x01` ou Secondary `0x02`.                          | `0x01`               |
+| **Score**    | 1     |                   | `0x12`             |
+| **Neighbor**       | 1     | Number of the neighbor.   | `0xA1`         |
+| **Primary** | 1    | Number of the primary neighbor.    | `0x01`          |
+| **Devices ID Primary** | 21    | Contains max seven (7) devices ID.    |             |
+
+### **3.2 Neighbors Format (31 bytes)**
+
+| Field         | Bytes | Description                                        | Example              |
+| ------------- | ----- | -------------------------------------------------- | -------------------- |
+| **Sender**   | 3     | Identifiant of the sender.          | `0x123456`     |
+| **Neighbor**       | 1     | Number of the neighbor.   | `0xA1`         |
+| **Devices ID Neighbor** | 24    | Contains max eight (8) devices ID.    |             |
+
+### **3.3 Message Format (31 bytes)**
+
+| Field         | Bytes | Description                                        | Example              |
+| ------------- | ----- | -------------------------------------------------- | -------------------- |
+| **Sender**   | 3     | Identifiant of the sender.          | `0x123456`     |
+| **Channel**     | 3     | Identifiant of the channel.                          | `0x011145`               |
+| **Random**    | 5     | Random number between 0 and 2^40.                  | `0x1234567890`             |
+| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`         |
+| **Encrypted** | 12    | Contains `Next (2) + Payload (10)` (encrypted).    | See below            |
+
+#### 3.3.2 Channel (3 byte)
+
+(Il faut que je changer cette partie)
 
 | Group Range | Quantity | Type                | Example Use Case   |
 | ----------- | -------- | ------------------- | ------------------ |
@@ -115,53 +141,38 @@ Flags provide information about the type of packet, for example, whether it is u
 | 32-63       | 32       | Organization Groups | Companies, Clubs   |
 | 64-255      | 192      | Global Groups       | Regions, Countries |
 
-### 3.7 Random (1 byte)
+#### 3.3.3 Random (5 byte)
 
 The randomly generated number serves two purposes:
-- It prevents two packets sent over the network from having the same IV if they haven't yet been synchronized to the latest value of the group's counter.
+- It prevents two packets sent over the network from having the same IV.
 - It prevents an attacker from predicting the next IV packet.
 
-### 3.8 Counter (5 bytes)
-
-Incremente by one for each create packet.
-
-### 3.9 MIC (5 bytes)
+#### 3.3.4 MIC (5 bytes)
 
 AES-CCM authentication tag. Message integrity check.  
 
-### 3.10 Encrypted Payload (15 bytes)
+#### 3.3.5 Encrypted Payload (12 bytes)
 
 | Field       | Bytes | Description                                                                   |
 | ----------- | ----- | ----------------------------------------------------------------------------- |
-| **Next**    | 3     | Link to next packet: `hash(group + next_next + next_payload) % 2^24`. </br>`0x000000` for last packet. |
-| **Payload** | 12    | Actual data.                                                                  |
+| **Next**    | 2     | Link to next packet: `hash(channel + next_next + next_payload) % 2^16`. </br>`0x000000` for last packet. |
+| **Payload** | 10    | Actual data.                                                                  |
 
-Calculating the Next value strengthens the chain's integrity. By performing `hash(Group + Next (next packet) + Payload (next packet))` in the packet's Next value, each packet is cryptographically linked to:
-- Group (to prevent confusion between groups).
+Calculating the Next value strengthens the chain's integrity. By performing `hash(Channel + Next (next packet) + Payload (next packet))` in the packet's Next value, each packet is cryptographically linked to:
+- Channel (to prevent confusion between channel).
 - Next value of the following packet (to prevent packet reordering).
 - Payload of the following packet (to prevent modifications).
 
-Furthermore, an attacker can no longer replace a packet with one from a different group, because the Next value would be different.
+Furthermore, an attacker can no longer replace a packet with one from a different channel, because the Next value would be different.
 
-### **3.11 Example Packet**
+### **3.4 ACK Format (31 bytes)**
 
-```
-Header:
-  - ID: 0xAA (Always)
-  - TTL: 0x05 (5 relays max)
-  - Flags: 0x00 (No flags)
-  - Group: 0x12 (Local group)
-
-IV:
-  - Random: 0x0001
-  - Counter: 0x0000000001
-
-MIC: 0xA1B2C3D4E5
-
-Encrypted Payload:
-  - Next: 0x123456 (Link to next packet)
-  - Payload: 0x789ABC... (Encrypted data)
-```
+| Field         | Bytes | Description                                        | Example              |
+| ------------- | ----- | -------------------------------------------------- | -------------------- |
+| **Sender**   | 3     | Identifiant of the sender.          | `0x123456`     |
+| **Channel**       | 3     | Identifiant of the channel.   | `0x123456`         |
+| **IV** | 11    | Contains max eight (8) devices ID.    |             |
+| **Type** | 1    | Type of the ACK.    | `0x04`            |
 
 ---
 
@@ -170,7 +181,7 @@ Encrypted Payload:
 ### **4.1 Encryption and Authentication**
 
 - **Algorithm**: AES-CCM-128 (32-bytes key).
-- **IV**: 8 bytes (`Group (1) + Random (2) + Counter (5)`) for uniqueness.
+- **IV**: 11 bytes (`Sender (3) + Channel (3) + Random (5)`) for uniqueness.
 - **MIC**: 4 bytes for authentication (tamper detection).
 
 #### Initialization Vector (IV)
@@ -181,7 +192,9 @@ The IV (Initialization Vector) is a pseudo-random value used to ensure that the 
 
 The MIC is used in authenticated encryption modes such as AES-CCM to verify the integrity and authenticity of the encrypted message. It allows detection of whether the message has been modified during transmission.
 
-### 4.2 Group Management
+### 4.2 Channel Management
+
+(Il faut aussi changer cette partie)
 
 | Group Range | Quantity | Type                | Example Use Case   |
 | ----------- | -------- | ------------------- | ------------------ |
@@ -198,22 +211,22 @@ The MIC is used in authenticated encryption modes such as AES-CCM to verify the 
 Each field packet is stored in binary form in a file, with the following structure:
 | Field      | Bytes           | Description                     |
 |------------|-----------------|---------------------------------|
-| Group      | 1               | Identifiant of group (0-255)    |
-| Key        | 32              | Counter of packet               |
+| Channel      | 3               | Identifiant of channel.    |
+| Key        | 32              | Key of the channel.               |
   
 **Size**  
-33 bytes for each group.  
+35 bytes for each channel.  
   
 **Format**  
 - The file is a concatenation.
-- Each group is written sequentially.
+- Each channel is written sequentially.
 
 ### 4.3 Fragmentation with `Next`
   
 **Principle**  
-- Each packet contains a 3-byte `Next` field.
-- `Next = hash(Group + Next (next packet) + Payload (next packet))`.
-- Last packet has `Next = 0x000000`.  
+- Each packet contains a 2-byte `Next` field.
+- `Next = hash(Channel + Next (next packet) + Payload (next packet))`.
+- Last packet has `Next = 0x0000`.  
   
 **Reconstruction**  
 - Receiver verifies that `Next` of the previous packet matches the hash of the current payload.
@@ -225,7 +238,7 @@ Each field packet is stored in binary form in a file, with the following structu
 - **Cryptographic `Next`**: Prevents packet modification/reordering.
 - **MIC**: Detects tampering.
 
-Save the `Group`, `Counter` and `MIC` of the packet in database for prevent paquet replay.
+Save the `IV` and `MIC` of the packet in database for prevent paquet replay.
 
 #### Database
   
@@ -233,18 +246,17 @@ Save the `Group`, `Counter` and `MIC` of the packet in database for prevent paqu
 Each field packet is stored in binary form in a file, with the following structure:
 | Field      | Bytes           | Description                     |
 |------------|-----------------|---------------------------------|
-| Group      | 1               | Identifiant of group (0-255)    |
-| Counter    | 5               | Counter of packet               |
+| IV      | 11               | IV of the packet.    |
 | MIC        | 5               | Tag AES-CCM                     |
   
 **Size**  
-11 bytes for each packet.
+16 bytes for each packet.
   
 **Format**  
 - The file is a concatenation of packet fields.
 - Each packet is written sequentially.
   
-### 4.5 Risk of collision
+### 4.5 Risk of collision MIC
 
 The probability of collision for a space of **N possible value** (here, $2^{40}$ for 40 bytes MIC) with **k packets** (here, $10^{9}$ for example) is approximated by :  
   
@@ -285,7 +297,7 @@ If the ACK packet is lost, then nothing happens. Indeed, each packet is sent aro
 If after 5 minutes there is not at least one ACK indicating that the sent data has been correctly received, then the data is resent and another 5 minutes are waited. If after three attempts _(so, 15 minutes after the first send)_, the process is abandoned.
 
 #### Priority
-ACKs are processed with priority by the network (equivalent to the flag `Urgent 0x01`).
+ACKs are processed with priority by the network.
 
 ### Types
 
@@ -336,31 +348,3 @@ sequenceDiagram
     DeviceX ->> DeviceN: MISSING Packet 2
     DeviceN ->> DeviceX: Packet 2
 ```
-
-### Exemple frame
-
-![ACK](img-frame-ack.png)
-
----
-
-## 7. Limitations {#limitations}
-
-| Limitation    | Impact                           | Solution?                                       |
-| ------------- | -------------------------------- | ---------------------------------------------- |
-| Packet Size   | 31 bytes max (BLE 4.0+).         | Use only Bluetooth 5.0+ for 255 bytes.                                          |
-| Range         | ~30-50m (standard BLE).          | Use BLE Long Range (125 kbps).             |
-| Latency       | Higher in Long Range (125 kbps). | Use 500 kbps if shorter range suffices.    |
-| Compatibility | Bluetooth 4.0 does not use Long Range.                             | Provide a fallback mode. |
-
----
-
-## **8. Glossary** {#glossary}
-
-| Term        | Definition                                                                   |
-| ----------- | ---------------------------------------------------------------------------- |
-| **BLE**     | Bluetooth Low Energy: Wireless protocol for low-power devices.               |
-| **AES-CCM** | Advanced Encryption Standard - Counter Mode with CBC-MAC for authentication. |
-| **IV**      | Initialization Vector: Unique value for encryption.                          |
-| **TTL**     | Time To Live: Number of allowed relays for a packet.                         |
-| **Next**    | 3-byte field linking a packet to the next via cryptographic hash.            |
-| **Group**   | Group identifier for selecting the encryption key.                           |
