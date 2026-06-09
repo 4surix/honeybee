@@ -62,12 +62,12 @@ sequenceDiagram
 
 ---
 
-## 3. Mechanisms
+## 3. Mechanisms {#mechanisms}
 
-- [Acknowledgement Mechanism](#mechanisms/ACKNOWLEDGEMENT.md)
-- [Channels Mechanism](#mechanisms/CHANNELS.md)
-- [Identification Mechanism](#mechanisms/IDENTIFICATION.md)
-- [Network Mechanism](#mechanisms/NETWORK.md)
-- [Packet Mechanism](#mechanisms/PACKET.md)
-- [Relay Mechanism](#mechanisms/RELAY.md)
-- [Confidentiality Mechanism](#mechanisms/CONFIDENTIALITY.md)
+- [Acknowledgement Mechanism](mechanisms/ACKNOWLEDGEMENT.md)
+- [Channels Mechanism](mechanisms/CHANNELS.md)
+- [Identification Mechanism](mechanisms/IDENTIFICATION.md)
+- [Network Mechanism](mechanisms/NETWORK.md)
+- [Packet Mechanism](mechanisms/PACKET.md)
+- [Relay Mechanism](mechanisms/RELAY.md)
+- [Confidentiality Mechanism](mechanisms/CONFIDENTIALITY.md)

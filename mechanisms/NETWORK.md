@@ -22,8 +22,8 @@ $$S_{bat} = \frac{100}{1 + e^{-0.2 (B - 40)}}$$
 
 - $B$ : Remaining battery percentage (0 to 100).
 - **Examples**:
-    - $B = 40$ → $S_{bat} = 50$.
     - $B = 80$ → $S_{bat} \approx 99.9$.
+    - $B = 40$ → $S_{bat} = 50$.
     - $B = 33$ → $S_{bat} \approx 20.0$.
     - $B = 20$ → $S_{bat} \approx 1.8$.
 
@@ -56,9 +56,9 @@ $$V_{sig} = 0.5 \times \sum_{i \in \text{common}} \left( \frac{|\overline{RSSI}_
 
 $V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.
 
-$$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\text{total_previous}})}$$
+$$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\text{total\_previous}})}$$
 
-$N_{\text{total_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.
+$N_{\text{total\_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.
 
 Adaptive penalization with a minimum Threshold of 10 points to guarantee that even a highly mobile node retains a minimal chance of relaying if no other node is available.
 
@@ -111,7 +111,7 @@ $$S_{RSSI} = \max(0, \min(100, 2.5 \times (RSSI_{normalized} + 100)))$$
 
 Based on the transmission success rate _(successfully relayed packets (= ACK Succeeded received) / total relayed packets)_ over the last 100 transmissions:
 
-$$S_{fiab} = \text{success_rate} \times 100$$
+$$S_{fiab} = \text{success\_rate} \times 100$$
 
 **Initialization**: $S_{fiab} = 100$ for new nodes.
 
@@ -151,7 +151,7 @@ $$Bonus_{\text{seniority}} = \min\left(10, \frac{t}{4}\right) \times \frac{S_{ba
 
 Dynamic and proportional to the node's importance :
 
-$$Bonus_{\text{bridge}} = 20 \times \text{number_dependent_Primary_pairs}$$
+$$Bonus_{\text{bridge}} = 20 \times \text{number\_dependent\_Primary\_pairs}$$
 
 * **Cap**: $Bonus_{\text{bridge}} \le 100$.
 * **Condition**: A node is a Critical Bridge if it is the only physical link between two Primary nodes that cannot hear each other directly *(at 1 Mbps OR 125 kbps)*. 
@@ -171,8 +171,8 @@ $$Bonus_{\text{bridge}} = 20 \times \text{number_dependent_Primary_pairs}$$
 #### **Rule 0: Temperature Lock (Cooldown)**
 
 Adaptive lock based on the average velocity of neighbors (to prevent "flapping"):
-- **Promotion (Secondary -> Primary)**: $\text{Lock} = 5 + 5 \times V_{rel}$, $5 < \text{Lock} < 15$.
-- **Demotion (Primary -> Secondary)**: $\text{Lock} = 2 + 4 \times V_{rel}$, $2 < \text{Lock} < 10$.
+- **Promotion (Secondary -> Primary)**: $\text{Lock} = 5 + 5 \times V_{rel}$ ($5 < \text{Lock} < 15$).
+- **Demotion (Primary -> Secondary)**: $\text{Lock} = 2 + 4 \times V_{rel}$ ($2 < \text{Lock} < 10).
 
 #### **Rule 1: The Purger (Primary Nodes only)**
 
@@ -188,7 +188,7 @@ A Primary node demotes itself to Secondary if any one of these conditions is met
 
 **Overlap Calculation**:
 - Only neighbors with an RSSI ≥ -80 dBm are considered.
-- **Formula**: $\text{overlap_ratio} = \frac{\text{number_common_neighbors}}{\text{total_number_neighbors}}$
+- **Formula**: $\text{overlap\_ratio} = \frac{\text{number\_common\_neighbors}}{\text{total\_number\_neighbors}}$
 
 #### **Rule 2: Survival (Secondary Nodes only)**
 
@@ -262,5 +262,5 @@ The Primary node retains its status and score, but implements a Local Triage (Ac
 - **Traffic Classification**: All network traffic is divided into two priority tiers:
     - **High Priority (Control)**: Core routing protocol packets (e.g., `Neighbor` broadcasts, election intents, score updates).
     - **Low Priority (Data)**: Standard application payloads (e.g., routine sensor telemetry).
-- **Active Dropping**: If a Primary node exceeds its safe processing threshold *(> 50 relayed packets per second, or, > 80% TX/RX buffer capacity)*, it enters a defensive state.
+- **Active Dropping**: If a Primary node exceeds its safe processing threshold *(> 50 relayed packets per second, or, > 80% buffer capacity)*, it enters a defensive state.
 - **Execution**: In this state, the node silently drops any newly received Low Priority (Data) packets instead of adding them to the relay queue. High Priority (Control) packets are always processed normally. The node exits the defensive state once traffic drops back below the threshold.

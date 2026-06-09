@@ -36,6 +36,8 @@ The last bit (bit 0) of the channel value determines its communication mode:
 | Listen-only   | 0            | The node can only **receive** messages on this channel.     |
 | Send + Listen | 1            | The node can **send and receive** messages on this channel. |
 
+---
+
 ### **2. Rules**
 
 #### **2.1. Value Assignment**

@@ -1,7 +1,7 @@
 
 ## Packet Mechanism
 
-<img src="img-frame.png">
+<img src="../img-frame.png">
 
 ### 0. Common Format (3 bytes)
 
@@ -34,6 +34,8 @@ Type provide information about the type of packet?
 | `0x7F` | _Reserved_  |
 | `0xFF` | _Reserved_  |
 
+---
+
 ### **1. Informations Format (31 bytes)**
 
 | Field         | Bytes | Description                                        | Example              |
@@ -45,6 +47,8 @@ Type provide information about the type of packet?
 | **Primary**   | 1     | Number of the primary neighbor.                    | `0x01`               |
 | **Devices ID Primary** | 21    | Contains max seven (7) devices ID.        |                      |
 
+---
+
 ### **2. Neighbors Format (31 bytes)**
 
 | Field         | Bytes | Description                                        | Example              |
@@ -53,14 +57,16 @@ Type provide information about the type of packet?
 | **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
 | **Devices ID Neighbor** | 24    | Contains max eight (8) devices ID.       |                      |
 
+---
+
 ### **3. Message Format (31 bytes)**
 
 | Field         | Bytes | Description                                        | Example              |
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`     |
-| **Channel**   | 3     | Identifiant of the channel.                        | `0x011145`               |
-| **Random**    | 5     | Random number between 0 and 2^40.                  | `0x1234567890`             |
-| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`         |
+| **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
+| **Channel**   | 3     | Identifiant of the channel.                        | `0x011145`           |
+| **Random**    | 5     | Random number between 0 and 2^40.                  | `0x1234567890`       |
+| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`     |
 | **Encrypted** | 12    | Contains `Next (2) + Payload (10)` (encrypted).    | See below            |
 
 #### 3.2. Channel (3 byte)
@@ -100,11 +106,13 @@ Calculating the Next value strengthens the chain's integrity. By performing `has
 
 Furthermore, an attacker can no longer replace a packet with one from a different channel, because the Next value would be different.
 
+---
+
 ### **4. ACK Format (31 bytes)**
 
 | Field         | Bytes | Description                                        | Example              |
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
 | **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
 | **Channel**   | 3     | Identifiant of the channel.                        | `0x123456`           |
-| **IV**        | 11    | Contains max eight (8) devices ID.                 |                      |
+| **IV**        | 11    | IV of the packet concerned.                        | `0xA1B2C3D4E5F6A7B8C9A1B2` |
 | **Type**      | 1     | Type of the ACK.                                   | `0x04`               |

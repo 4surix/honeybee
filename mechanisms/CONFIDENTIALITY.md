@@ -48,12 +48,12 @@ The sender keep **secretly** the Ed25519 private key (for signing).
 
 Exemple to share:  
 `Channel::KeyEncryption::KeySignature`  
-`0x0130A1::7d2e9a4c1b8f3e5d0a6c9b2f4e7d1a0c::9d61b19deffd5a60ba844af492ec2cc44449c5697b32695c728c7c3cb9ae2`
+`0x0130A1::7d2e9a4c1b8f3e5d0a6c9b2f4e7d1a0c::9d61b19deffd5a60ba844af492ec2cc44449c5697b32695c728c7c3cb9ae2`  
   
 Process:
 - Signing: Signs the compressed data with private $\text{Key}_\text{Signature}$ (Ed25519), truncates to 10 bytes.
-- Concatenation: [Signature (10)] + [Compressed data (...)].
-- Encryption: Encrypts concatenation with AES-CCM (IV=11, MIC=5) and $\text{Key}_\text{Ephemeral}$.
+- Concatenation: `Signature (10)` + `Compressed data (...)`.
+- Encryption: Encrypts concatenation with AES-CCM (IV=11, MIC=5) and $\text{Key}_\text{Channel}$.
 
 #### 3.2. Channel keys for reading and writing.
 
@@ -63,13 +63,13 @@ Keys shared with all listeners:
   
 Exemple to share:  
 `Channel::KeyEncryption::KeySignature`  
-`0x010001::e9c1d2b3a4f506172839405162738495::5e6b3d9f2c7a1b8e4d0c9a6b3f7e2d8c5a1b0e4f9d6c7b8a3f2e1d0c9a`
-
+`0x010001::e9c1d2b3a4f506172839405162738495::5e6b3d9f2c7a1b8e4d0c9a6b3f7e2d8c5a1b0e4f9d6c7b8a3f2e1d0c9a`  
+  
 Process:
 - Signing: Signs the compressed data with $\text{Key}_\text{Signature}$ (HMAC-SHA256), truncated to 10 bytes.
-- Concatenation: [MAC (10)] + [Compressed data (...)].
-- Encryption: Encrypts concatenation with AES-CCM (IV=11, MIC=5) and $\text{Key}_\text{Ephemeral}$.
-
+- Concatenation: `Signature (10)` + `Compressed data (...)`.
+- Encryption: Encrypts concatenation with AES-CCM (IV=11, MIC=5) and $\text{Key}_\text{Channel}$.
+  
 ### 4. Fragmentation with `Next`
 
 The `Next` field is used for fragmentation by indicating which packet comes after the other in a packet chain, but it also constitutes a cryptographic proof preventing an attacker from reordering or modifying the fragments.
@@ -91,7 +91,7 @@ The `Next` field is used for fragmentation by indicating which packet comes afte
   
 ### 6. Risk of collision MIC
 
-The probability of collision for a space of N possible value (here, $2^{40}$ for 40 bytes MIC) with k packets (here, $10^{9}$ for example) is approximated by :  
+The probability of collision for a space of N possible value (here, $2^{40}$ for 40 bytes MIC) with `k` packets (here, $10^{9}$ for example) is approximated by :  
   
 $P(\text{collision}) \approx 1 - e^{-k^2 / (2N)}$  
 - $N = 2^{40}$ (number of possible MIC).  
