@@ -1,4 +1,4 @@
-<h1>HoneyBee 🐝</h1>
+# HoneyBee 🐝
 
 [![Bluetooth](https://img.shields.io/badge/-Bluetooth-0082FC?style=flat&logo=bluetooth&logoColor=white)](https://www.bluetooth.com/) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/4surix/honeybee/blob/main/LICENSE) [![Issues open](https://img.shields.io/github/issues/4surix/honeybee)](https://github.com/4surix/honeybee/issues) 
 
@@ -35,24 +35,5 @@ Not Ideal for:
 
 ## **Documentation**
 
-| Document                                 | Description                                                                       |
-| ---------------------------------------- | --------------------------------------------------------------------------------- |
-| [PROTOCOL.md](PROTOCOL.md)               | Technical specification of the protocol (packet structure, encryption, relaying). |
-| [IMPLEMENTATION.md](IMPLEMENTATION.md) | Code examples (Python, Kotlin) and integration guidelines.                        |
-| [USAGE.md](USAGE.md)                   | Step-by-step guide for sending/receiving messages.                                |
-| [SECURITY.md](SECURITY.md)                   | Know security issues.                                |
-
----
-
-## **Project Structure**
-
-```
-honeybee/
-|─ README.md               # This file
-|─ PROTOCOL.md             # Protocol specification
-|─ USAGE.md                # Usage guide
-|─ SECURITY.md             # Security issues
-|─ IMPLEMENTATION.md       # Code examples
-|─ logo_honeybee.png       # Logo of the protocol
-|─ LICENSE                 # Apache License Version 2.0
-```
+1. [PROTOCOL.md](PROTOCOL.md) : Technical specification of the protocol.
+2. [SECURITY.md](SECURITY.md) : Know security issues.
