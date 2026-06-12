@@ -45,7 +45,7 @@ Type provide information about the type of packet?
 | **Score**     | 1     |                                                    | `0x12`               |
 | **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
 | **Primary**   | 1     | Number of the primary neighbor.                    | `0x01`               |
-| **Devices ID Primary** | 21    | Contains max seven (7) devices ID.        |                      |
+| **Devices ID Primary** | 21    | Contains max seven (7) devices ID.        | -                     |
 
 ---
 
@@ -55,7 +55,7 @@ Type provide information about the type of packet?
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
 | **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
 | **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
-| **Devices ID Neighbor** | 24    | Contains max eight (8) devices ID.       |                      |
+| **Devices ID Neighbor** | 24    | Contains max eight (8) devices ID.       | -                     |
 
 ---
 
@@ -67,7 +67,8 @@ Type provide information about the type of packet?
 | **Channel**   | 3     | Identifiant of the channel.                        | `0x011145`           |
 | **Random**    | 5     | Random number between 0 and 2^40.                  | `0x1234567890`       |
 | **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`     |
-| **Encrypted** | 12    | Contains `Next (2) + Payload (10)` (encrypted).    | See below            |
+| **Payload**   | 10    | -                                                  | See below            |
+| **Next**      | 3     | Identifiant of the channel.                        | `0x011145`           |
 
 #### 3.2. Channel (3 byte)
 
@@ -92,17 +93,16 @@ The randomly generated number serves two purposes:
 
 AES-CCM authentication tag. Message integrity check.  
 
-#### 3.5. Encrypted Payload (12 bytes)
+#### 3.5. Encrypted Payload (10 bytes)
 
-| Field       | Bytes | Description                                                                   |
-| ----------- | ----- | ----------------------------------------------------------------------------- |
-| **Next**    | 2     | Link to next packet: `hash(channel + next_next + next_payload) % 2^16`. </br>`0x000000` for last packet. |
-| **Payload** | 10    | Actual data.                                                                  |
 
-Calculating the Next value strengthens the chain's integrity. By performing `hash(Channel + Next (next packet) + Payload (next packet))` in the packet's Next value, each packet is cryptographically linked to:
-- Channel (to prevent confusion between channel).
-- Next value of the following packet (to prevent packet reordering).
-- Payload of the following packet (to prevent modifications).
+
+#### 3.6. Next (3 bytes)
+
+Calculating the Next value strengthens the chain's integrity. By performing `xxHash(IV (next packet) + MIC (next packet) + Next (next packet)) % 2^24` in the packet's Next value, each packet is cryptographically linked to:
+- IV value of the following packet
+- MIC value of the following packet
+- Next value of the following packet (to prevent packet reordering)
 
 Furthermore, an attacker can no longer replace a packet with one from a different channel, because the Next value would be different.
 
@@ -114,5 +114,7 @@ Furthermore, an attacker can no longer replace a packet with one from a differen
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
 | **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
 | **Channel**   | 3     | Identifiant of the channel.                        | `0x123456`           |
-| **IV**        | 11    | IV of the packet concerned.                        | `0xA1B2C3D4E5F6A7B8C9A1B2` |
 | **Type**      | 1     | Type of the ACK.                                   | `0x04`               |
+| **IV**        | 10    | IV of the packet concerned.                        | `0xA1B2C3D4E5F6A7B8C9D0` |
+| **MIC**       | 5     | MIC of the packet concerned.                       | `0xA1B2C3D4E5`       |
+| **Padding**   | 5     |                                                    | `0x00...`            |

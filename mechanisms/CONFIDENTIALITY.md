@@ -4,7 +4,7 @@
 ### **1. Encryption and Authentication**
 
 - **Algorithm**: AES-CCM-128 (16-bytes key).
-- **IV**: 11 bytes (`Sender (3) + Channel (3) + Random (5)`) for uniqueness.
+- **IV**: 11 bytes (`Sender (3) + Channel (3) + Random (4)`) for uniqueness.
 - **MIC**: 5 bytes for authentication (tamper detection).
 
 #### Initialization Vector (IV)
@@ -89,14 +89,18 @@ The `Next` field is used for fragmentation by indicating which packet comes afte
 - **Cryptographic `Next`**: Prevents packet modification/reordering.
 - **MIC**: Detects tampering.
   
-### 6. Risk of collision MIC
+### 6. Risk of collision
 
-The probability of collision for a space of N possible value (here, $2^{40}$ for 40 bytes MIC) with `k` packets (here, $10^{9}$ for example) is approximated by :  
+#### MIC
+
+The length of MIC is 5 bytes (40 bits).
+
+The probability of collision for a space of N possible value (here, $2^{40}$ for 40 bits MIC) with `k` packets (here, $10^{6}$ for example) is approximated by :  
   
 $P(\text{collision}) \approx 1 - e^{-k^2 / (2N)}$  
 - $N = 2^{40}$ (number of possible MIC).  
-- $k = 10^{9}$ (number of packet exchanged). 
+- $k = 10^{6}$ (number of packet exchanged). 
   
-$P(\text{collision}) \approx 1 - e^{-(10^9)^2 / (2 \times 2^{40})} \approx 1 - e^{-10^{18} / 2^{41}} \approx 1 - e^{-0.00045} \approx 0.00045$  
+$P(\text{collision}) \approx 1 - e^{-(10^6)^2 / (2 \times 2^{40})} \approx 1 - e^{-10^{12} / 2^{41}} \approx 1 - e^{-0.4547} \approx 1 - 0.63 \approx 0.37$  
 
-The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 billion packets ($k = 10^9$) is approximately 0.045% (1 collision every ~220,000 packets).
+The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 million packets ($k = 10^6$) is approximately 37%.

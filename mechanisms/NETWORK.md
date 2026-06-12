@@ -117,7 +117,7 @@ $$S_{fiab} = \text{success\_rate} \times 100$$
 
 #### F. Total Score Formula ($S_{base}$)
 
-$$S_{base} = ((S_{vois} \times 0.30) + (S_{mob} \times 0.20) + (S_{RSSI} \times 0.15) + (S_{fiab} \times 0.15)) \times (S_{bat} / 100)$$
+$$S_{base} = ((S_{vois} \times 0.30) + (S_{mob} \times 0.20) + (S_{RSSI} \times 0.15) + (S_{fiab} \times 0.15)) \times (\frac{S_{bat}}{100})$$
 
 $$S_{base} = \max(0, \min(100, S_{base}))$$
 
