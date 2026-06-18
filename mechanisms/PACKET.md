@@ -3,87 +3,87 @@
 
 <img src="../img-frame.png">
 
-### 0. Common Format (3 bytes)
+### 0. Head Common Format (2 bytes)
 
-| Field         | Bytes | Description                                        | Example              |
-| ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **ID**        | 1     | Protocol identifier (`0xAA`).                      | `0xAA`               |
-| **TTL**       | 1     | Number of allowed relays (decremented per relay).  | `0x05`               |
-| **Type**      | 1     | Type of the packet.                                | `0x01`               |
+| Field         | Bytes | Description                                       | Example              |
+| ------------- | ----- | ------------------------------------------------- | -------------------- |
+| **ID**        | 5/8   | Protocol identifier (`10100`).                    | `10100`              |
+| **Type**      | 3/8   | Type of the packet.                               | `010`                |
+| **TTL**       | 1     | Number of allowed relays (decremented per relay). | `0x05`               |
 
 #### 0.1 ID
 
-The first 8 bits of the frame. Used to identify the protocol. If the frame does not begin with `0xAA`, then the received packet uses a different protocol. You can automatically reject it.
+The first 5 bits of the frame. Used to identify the protocol. If the frame does not begin with `10100`, then the received packet uses a different protocol. You can automatically reject it.
 
-#### 0.2 TTL
+#### 0.2 Type
+
+Type provide information about the type of packet.
+
+| Bits   | Description     |
+| ------ | --------------- |
+| `000`  | _Reserved_      |
+| `001`  | Informations    |
+| `010`  | Neighbor        |
+| `011`  | Message         |
+| `100`  | ACK             |
+| `101`  | _Reserved_      |
+| `110`  | _Reserved_      |
+| `111`  | _Reserved_      |
+
+#### 0.3 TTL
 
 The TTL indicates the number of times the packet must be relayed by any device. It prevents the packet from traveling too far unnecessarily.
 
-#### 0.3 Type
-
-Type provide information about the type of packet?
-
-| Bit    | Description |
-| ------ | ----------- |
-| `0x01` | Informations    |
-| `0x03` | Neighbor    |
-| `0x07` | Message  |
-| `0x0F` | ACK  |
-| `0x1F` | _Reserved_  |
-| `0x3F` | _Reserved_  |
-| `0x7F` | _Reserved_  |
-| `0xFF` | _Reserved_  |
-
 ---
 
-### **1. Informations Format (31 bytes)**
+### **1. Informations Format (7-29 bytes)**
 
 | Field         | Bytes | Description                                        | Example              |
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
+| **Sender**    | 2     | Identifiant of the sender.                         | `0x1234`             |
 | **Role**      | 1     | Primary `0x01` ou Secondary `0x02`.                | `0x01`               |
 | **Score**     | 1     |                                                    | `0x12`               |
 | **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
+| **Padding**   | 1     |                                                    | `0x00`               |
 | **Primary**   | 1     | Number of the primary neighbor.                    | `0x01`               |
-| **Devices ID Primary** | 21    | Contains max seven (7) devices ID.        | -                     |
+| **Devices Primary** | 22    | Contains, min 0, max 11 devices ID.          | -                    |
 
 ---
 
-### **2. Neighbors Format (31 bytes)**
+### **2. Neighbors Format (3-29 bytes)**
 
 | Field         | Bytes | Description                                        | Example              |
 | ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
+| **Sender**    | 2     | Identifiant of the sender.                         | `0x123456`           |
 | **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
-| **Devices ID Neighbor** | 24    | Contains max eight (8) devices ID.       | -                     |
+| **Devices Neighbor** | 26    | Contains, min 0, max 13 devices ID.         | -                    |
 
 ---
 
-### **3. Message Format (31 bytes)**
+### **3. Message Format (16-29 bytes)**
 
-| Field         | Bytes | Description                                        | Example              |
-| ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
-| **Channel**   | 3     | Identifiant of the channel.                        | `0x011145`           |
-| **Random**    | 5     | Random number between 0 and 2^40.                  | `0x1234567890`       |
-| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check.   | `0xA1B2C3D4`     |
-| **Payload**   | 10    | -                                                  | See below            |
-| **Next**      | 3     | Identifiant of the channel.                        | `0x011145`           |
+| Field         | Bytes | Description                                      | Example            |
+| ------------- | ----- | ------------------------------------------------ | ------------------ |
+| **Sender**    | 2     | Identifiant of the sender.                       | `0x1234`           |
+| **Channel**   | 2     | Identifiant of the channel.                      | `0x0111`           |
+| **Random**    | 4     | Random number between 0 and 2^40.                | `0x12345678`       |
+| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check. | `0xA1B2C3D4E5` |
+| **List**      | 2     | -                                                | See below          |
+| **Payload**   | 1-14  | -                                                | See below          |
 
-#### 3.2. Channel (3 byte)
+#### 3.2. Channel (2 byte)
 
-| **Type**             | **Binary Format**               | **Description**                          |
-| -------------------- | ------------------------------- | ---------------------------------------- |
-| **Global**           | `1XXX XXXX XXXX XXXX XXXX XXXX` | Channels used for global communications. |
-| **Community**        | `0001 XXXX XXXX XXXX XXXX XXXX` | Channels used to specific communities or organizations. |
-| **Team**             | `0000 0001 XXXX XXXX XXXX XXXX` | Channels used for teams or workgroups.   |
-| **Private**          | `0000 0000 0001 XXXX XXXX XXXX` | Channels for exchanges between a (very) small number of users.  |
-| **Emergency**        | `0000 0000 0000 001X XXXX XXXX` | Priority channels for alerts or critical communications.   |
-| **Technical & Test** | `0000 0000 0000 0001 XXXX XXXX` | Channels used for testing, debugging, or technical uses.   |
-| **Reserved**         | `0000 0000 0000 0000 1XXX XXXX` | Channels reserved.                              |
+| **Type**             | **Binary Format**     | **Description**                          |
+| -------------------- | --------------------- | ---------------------------------------- |
+| **Global**           | `1XXX XXXX XXXX XXXM` | Channels used for global communications. |
+| **Community**        | `0001 XXXX XXXX XXXM` | Channels used to specific communities or organizations. |
+| **Team**             | `0000 0001 XXXX XXXM` | Channels used for teams or workgroups.   |
+| **Private**          | `0000 0000 001X XXXM` | Channels for exchanges between a (very) small number of users.  |
+| **Emergency**        | `0000 0000 0001 XXXM` | Priority channels for alerts or critical communications.   |
+| **Technical & Test** | `0000 0000 0000 001M` | Channels used for testing, debugging, or technical uses.   |
+| **Reserved**         | `0000 0000 0000 000M` | Channels reserved.                              |
 
-
-#### 3.3. Random (5 byte)
+#### 3.3. Random (4 byte)
 
 The randomly generated number serves two purposes:
 - It prevents two packets sent over the network from having the same IV.
@@ -93,28 +93,37 @@ The randomly generated number serves two purposes:
 
 AES-CCM authentication tag. Message integrity check.  
 
-#### 3.5. Encrypted Payload (10 bytes)
+#### 3.5. List (2 bytes, 16 bits)
 
+| Field         | Bits  | Description                                      | Example            |
+| ------------- | ----- | ------------------------------------------------ | ------------------ |
+| **Chain**     | 4     | Chain ID for the actual Sender ID.               | `0010`             |
+| **Last**      | 6     | Index of the last packet in the group.           | `010011`           |
+| **Index**     | 6     | Position of the packet in the group.             | `000010`           |
 
+##### 3.5.1 Chain
+  
+Specifies the packet chain identifier.   
+A maximum of 16 chains can be created per `Sender ID`.   
+Initially, the first chain value is 0.  
+The value increments by 1 for each new chain created.  
+Once the value reaches 15, no further chains can be created; one must wait for the `Sender ID` to change for the `Chain` value to reset to 0.  
+  
+##### 3.5.2 Last
 
-#### 3.6. Next (3 bytes)
+This field specifies the index of the last packet in the packet chain. This makes it possible to determine how many packets make up the chain and to create the list (which will hold each packet) with the correct size.  
+  
+##### 3.5.3 Index
 
-Calculating the Next value strengthens the chain's integrity. By performing `xxHash(IV (next packet) + MIC (next packet) + Next (next packet)) % 2^24` in the packet's Next value, each packet is cryptographically linked to:
-- IV value of the following packet
-- MIC value of the following packet
-- Next value of the following packet (to prevent packet reordering)
-
-Furthermore, an attacker can no longer replace a packet with one from a different channel, because the Next value would be different.
+The position of the packet in the chain.  
 
 ---
 
-### **4. ACK Format (31 bytes)**
+### **4. ACK Format (7 bytes)**
 
-| Field         | Bytes | Description                                        | Example              |
-| ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 3     | Identifiant of the sender.                         | `0x123456`           |
-| **Channel**   | 3     | Identifiant of the channel.                        | `0x123456`           |
-| **Type**      | 1     | Type of the ACK.                                   | `0x04`               |
-| **IV**        | 10    | IV of the packet concerned.                        | `0xA1B2C3D4E5F6A7B8C9D0` |
-| **MIC**       | 5     | MIC of the packet concerned.                       | `0xA1B2C3D4E5`       |
-| **Padding**   | 5     |                                                    | `0x00...`            |
+| Field         | Bytes | Description                                  | Example              |
+| ------------- | ----- | -------------------------------------------- | -------------------- |
+| **Sender**    | 2     | `Sender ID` of the packet concerned.         | `0x1234`             |
+| **Channel**   | 2     | `Channel ID` of the packet concerned.        | `0x1234`             |
+| **List**      | 2     | `List` of the packet concerned.              | `0x0471`             |
+| **Type**      | 1     | Type of the ACK.                             | `0x04`               |

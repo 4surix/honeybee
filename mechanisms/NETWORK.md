@@ -2,8 +2,16 @@
 
 ### **1. Overview**
 
-- Primary Node (Router/Relay) relays packets (at 1 Mbps and 125 kbps) and maintains the network.
-- Secondary Node (Client) listens to the network and transmits its data (at 1 Mbps and 125 kbps), but does not relay.
+**Two modes :**
+- **Primary Node** 
+    - Send packets _(at 1 Mbps and 125 kbps)_
+    - Receive packets _(at 1 Mbps and 125 kbps)_
+    - Relays packets _(at 1 Mbps and 125 kbps)_
+    - Maintains the network
+- **Secondary Node**
+    - Send packets _(at 1 Mbps and 125 kbps)_
+    - Receive packets _(at 1 Mbps and 125 kbps)_
+
 - BLE 5.0 nodes (125 kbps) are prioritized to become Primary nodes because they cover a wider area, thereby reducing the total number of Primary nodes needed.
 - BLE 5.0 nodes use dual transmission/reception (1 Mbps and 125 kbps) to ensure compatibility and maximum coverage.
 - BLE 4.0 nodes are restricted to transmitting and listening at 1 Mbps only.
@@ -43,26 +51,28 @@ $$V_{topo} = N_{new} + N_{lost}$$
 
 ###### B. Signal Volatility ($V_{sig}$)
 
-Measures the intensity of movement within existing links. For neighbors present during the current cycle ($T$) and the previous cycle ($T-1$), significant power variations are added together:
-
-$$\overline{RSSI}_{i} = \frac{\sum_{j}^{n = 5} \text{RSSI}_{T_i - j}}{5}$$
-
-$$V_{sig} = 0.5 \times \sum_{i \in \text{common}} \left( \frac{|\overline{RSSI}_{i}  - \overline{RSSI}_{i - 1} |}{Threshold} \right) \text{ for all } |\Delta \overline{RSSI}| > Threshold$$
-
-* **Threshold**: Set to **6 dB** to filter out natural Bluetooth noise. RSSI variations less than or equal to 6 dB are ignored (considered as noise).
-* **Logic**: A 6 dB variation counts as "1 movement unit". A sharper variation (e.g., 18 dB) counts for 3 units, penalizing fast movements more heavily.
-
+Measures the intensity of movement within existing links.  
+  
+Each of our neighbors sends an Informations packet every 5 seconds.  
+If we have 100 neighbors, we therefore receive 100 packets every 5 seconds, or 20 packets per second.  
+  
+$$\overline{\text{RSSI}}_{i} = \frac{\sum_{j}^{n = 3} \text{RSSI}_{(i \times 3) + j}}{3}$$
+  
+$$V_{sig} = \round(0.5 \times \sum_{i \in \text{common}} \left( \frac{|\overline{\text{RSSI}}_{i} - \overline{\text{RSSI}}_{i - 1} |}{Threshold} \right))$$  
+  
+**Threshold**: Set to **6 dB** variation counts as "1 movement unit". A sharper variation (ex: 18 dB) counts for 3 units, penalizing fast movements more heavily.  
+  
 ##### 2. Global Formula and Score
-
-$V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.
-
+  
+$V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.  
+  
 $$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\text{total\_previous}})}$$
-
-$N_{\text{total\_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.
-
-Adaptive penalization with a minimum Threshold of 10 points to guarantee that even a highly mobile node retains a minimal chance of relaying if no other node is available.
-
-For the first calculation, $k_{\text{new}} = k_{\text{last}} = 1.15$ and $\Delta t_{\text{new}} = \Delta t_{\text{last}} = 1$.
+  
+$N_{\text{total\_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.  
+  
+Adaptive penalization with a minimum Threshold of 10 points to guarantee that even a highly mobile node retains a minimal chance of relaying if no other node is available.  
+  
+For the first calculation, $k_{\text{new}} = k_{\text{last}} = 1.15$ and $\Delta t_{\text{new}} = \Delta t_{\text{last}} = 1$.  
 
 $$k_{\text{new}} = k_{\text{last}} \times \frac{\Delta t_{\text{last}}}{\Delta t_{\text{new}}}$$
 
@@ -75,7 +85,7 @@ $$S_{\text{mob}} = \max(10, 100 \times e^{-k_{\text{new}} \cdot V_{rel}})$$
 
 ##### 3. Calculation Examples ($k=1.15$)
 
-- **$V_{rel} = 0$ (Static)**: No ID changes, RSSI variations < 6 dB. $S_{mob} = 100$.
+- **$V_{rel} = 0$ (Static)**: No ID changes, very low RSSI variations. $S_{mob} = 100$.
 - **$V_{rel} = 0.6$ (Slight movement)**. $S_{mob} \approx 50$.
     *Example: A node loses 1 neighbor ($N_{\text{lost}}=1$) and has 1 common neighbor with an RSSI variation of 24 dB ($V_{sig} = 0.5 \cdot \frac{24}{6} = 2$). If $N_{\text{total_previous}} = 5$, then $V_{rel} = \frac{1 + 2}{5} = 0.6$.*
 - **$V_{rel} = 2.0$ (Fast movement)**. $S_{mob} \approx 10$.
@@ -109,7 +119,7 @@ $$S_{RSSI} = \max(0, \min(100, 2.5 \times (RSSI_{normalized} + 100)))$$
 
 #### E. Reliability History Score ($S_{fiab}$)
 
-Based on the transmission success rate _(successfully relayed packets (= ACK Succeeded received) / total relayed packets)_ over the last 100 transmissions:
+Based on the transmission success rate _(successfully relayed packets (= ACK Succeeded received) / total relayed packets)_ over the last 100 transmissions :
 
 $$S_{fiab} = \text{success\_rate} \times 100$$
 
@@ -180,7 +190,6 @@ A Primary node demotes itself to Secondary if any one of these conditions is met
 
 1. **Absolute Competition**:
 - Another neighboring Primary has a score higher by more than 15 points (Hysteresis).
-- **Exception**: If the current Primary has an $S_{bat} < 20\%$, $Score = 0$.
 
 2. **Topological Redundancy**:
 - The overlap with a neighboring Primary is **> 75%**.
@@ -245,22 +254,3 @@ A node is a Critical Bridge if it is the only link *(at 1 Mbps OR 125 kbps)* bet
   
 **Example**:  
 A BLE 5.0 node can be a Critical Bridge between a BLE 4.0 (1 Mbps) and a BLE 5.0 (125 kbps) node, because it transmits in both modes.  
-  
----
-
-### **6. Robustness and Security**
-
-#### **A. Load Balancing & Quality of Service (QoS)**
-  
-**Problem**  
-Certain well-placed Primary nodes might become overloaded with traffic. Penalizing their score would cause them to demote, leading to network instability ("flapping") and further packet loss during topology reorganization.  
-  
-**Solution**  
-The Primary node retains its status and score, but implements a Local Triage (Active Dropping) mechanism to protect core network operations. 
-  
-**Mechanism**
-- **Traffic Classification**: All network traffic is divided into two priority tiers:
-    - **High Priority (Control)**: Core routing protocol packets (e.g., `Neighbor` broadcasts, election intents, score updates).
-    - **Low Priority (Data)**: Standard application payloads (e.g., routine sensor telemetry).
-- **Active Dropping**: If a Primary node exceeds its safe processing threshold *(> 50 relayed packets per second, or, > 80% buffer capacity)*, it enters a defensive state.
-- **Execution**: In this state, the node silently drops any newly received Low Priority (Data) packets instead of adding them to the relay queue. High Priority (Control) packets are always processed normally. The node exits the defensive state once traffic drops back below the threshold.

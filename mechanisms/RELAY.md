@@ -8,4 +8,4 @@ Even if the device has already received a package, it still returns it. On the o
   
 The relayed packages follow the same logical ELODRI as the acknowledgement mechanism.  
   
-The last 10 000 *(by default)* packages are kept in RAM, for the `MISSING` part of the acknowledgement mechanism. 10 000 packages represent 10 000 x 31 bytes = 310 000 bytes = minimum 310 kb in the RAM .  
+The last 1000 *(by default)* packages Message recieved are kept in RAM, for the `MISSING` part of the acknowledgement mechanism. 1000 packages represent 1000 x 31 bytes = 31 000 bytes = minimum 31 kb in the RAM.  

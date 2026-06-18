@@ -3,7 +3,7 @@
 
 ### **1. Introduction**
 
-Generate a unique 3-byte (24-bit) address that changes every 5-minute interval, without requiring local storage, central synchronization, or complex management.
+Generate a unique 2-byte (16-bit) identifiant that changes every 15-minute interval, without requiring local storage, central synchronization. With each change, the value of `Group` is reset to zero.
 
 ---
 
@@ -17,9 +17,9 @@ Generate a unique 3-byte (24-bit) address that changes every 5-minute interval, 
 
 #### **2.2 Key Components**
 
-| **Component**          | **Role**                                                     |
-|------------------------|-------------------------------------------------------------|
-| **Address Generator**  | Uses a 24-bit LFSR to generate pseudo-random addresses. |
+| **Component**          | **Role**                                                |
+|------------------------|---------------------------------------------------------|
+| **Address Generator**  | Uses a 16-bit LFSR to generate pseudo-random addresses. |
 | **Unique Seed**        | Derived from part of the UUID to ensure uniqueness.     |
 | **Local Clock**        | Used to determine the current 15-minute period.         |
 
@@ -27,35 +27,35 @@ Generate a unique 3-byte (24-bit) address that changes every 5-minute interval, 
 
 ### **3. Dynamic Address Generation**
 
-#### **3.1 Selected Method: 24-bit LFSR + Local Time**
+#### **3.1 Selected Method: 16-bit LFSR + Local Time**
 
-The solution uses a 24-bit Linear Feedback Shift Register (LFSR) with a feedback polynomial:
-`x²⁴ + x²³ + x²² + x¹⁷ + 1` (represented by the hexadecimal value `0x2D2C01`).
+The solution uses a 16-bit Linear Feedback Shift Register (LFSR) with a feedback polynomial:
+`x¹⁶ + x¹⁴ + x¹³ + x¹¹ + 1` (represented by the hexadecimal value `0x402B`).
+This polynomial ensures a maximum period of 65,535 unique values before repetition.
 
-- **Maximum Period**: 16,777,215 unique values before repetition.
+- **Maximum Period**: 65,535 unique values.
 - **Deterministic**: The same seed and period always produce the same address.
 
 #### **3.2 LFSR Initialization**
 
-Each device initializes its LFSR with a unique seed derived from the last 3 bytes of its UUID (ex: `0xAABBCC`).
+Each device initializes its LFSR with a unique seed derived from the last 2 bytes of its UUID (ex: `0xBBCC`).
 
 #### **3.3 Address Generation**
 
 1. Each device calculates the current period by dividing the elapsed time since a reference epoch (January 1, 1970) by 15 minutes (900 seconds).
-   Example: If `elapsed_time = 3600 seconds` (1 hour), then `current_period = 3600 / 900 = 4 % 255`.
-2. The LFSR generates 3 bytes (24 bits) using the device's unique seed and the current period as input.
-3. The address is computed as follows:
+   Example: If `elapsed_time = 3600 seconds` (1 hour), then `current_period = (elapsed_time / 900) % 255`.
+2. The LFSR generates 2 bytes (16 bits) using the device's unique seed and the current period as input.
+3. The current period (1 byte) is XORed with each byte to introduce temporal variability. The address is computed as follows:
    ```
    Address = [
        LFSR_byte_1 XOR current_period,
-       LFSR_byte_2 XOR current_period,
-       LFSR_byte_3 XOR current_period
+       LFSR_byte_2 XOR current_period
    ]
    ```
-   The current period (1 byte) is XORed with each byte to introduce temporal variability.
 
 ---
+
 ### **4. Time Synchronization**
 
 - All devices use the same reference epoch (`January 1, 1970, 00:00:00 UTC`).
-- **No central synchronization**, each device uses its local clock to compute the elapsed time since the reference epoch.
+- **No central synchronization**: Each device uses its local clock to compute the elapsed time since the reference epoch.

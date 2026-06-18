@@ -13,15 +13,16 @@
 ## **Overview**
 
 It is designed for:
-- **Device-to-device relaying** (ex: phone-to-phone).
-- **Secure data transmission** (AES-CCM encryption, group-based keys).
-- **Fragmentation** of long messages into 12-byte payloads, linked via cryptographic `next` fields.
-- **Secure P2P messaging** with fragmentation and relay (ex: offline chat).
+- **Device-to-device relaying**.
+- **Secure data transmission** (AES-CCM encryption, channels-based keys).
+- **Fragmentation** of long messages into 14-byte payloads, linked via `List` fields.
+- **Secure P2P messaging** with fragmentation and relay (ex: chat).
+- **Very low debit**: Send 840 bytes per minute.
 
 Key Features:
 - **Easy and low provisioning**.
 - **Low complexity** (suitable for embedded and mobile devices).
-- **Anti-replay and integrity checks** (TTL, cryptographic `next`, AES-CCM tags).
+- **Anti-replay and integrity checks** (TTL, AES-CCM `MIC`).
 
 Not Ideal for:
 - Long-range IoT.

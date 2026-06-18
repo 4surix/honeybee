@@ -4,7 +4,7 @@
 ### **1. Encryption and Authentication**
 
 - **Algorithm**: AES-CCM-128 (16-bytes key).
-- **IV**: 11 bytes (`Sender (3) + Channel (3) + Random (4)`) for uniqueness.
+- **IV**: 8 bytes (`Sender (2) + Channel (2) + Random (4)`) for uniqueness.
 - **MIC**: 5 bytes for authentication (tamper detection).
 
 #### Initialization Vector (IV)
@@ -25,12 +25,12 @@ Each channel has a unique encryption key (stored by sender/receiver).
 Each field packet is stored in binary form in a file, with the following structure:
 | Field             | Bytes           | Description                         |
 |-------------------|-----------------|-------------------------------------|
-| Channel           | 3               | Identifiant of channel.             |
+| Channel           | 2               | Identifiant of channel.             |
 | Key Encryption    | 16              | Key of the channel for encryption.  |
 | Key Signature     | 32              | Key of the channel for signature.   |
   
 **Size**  
-51 bytes for each channel.  
+50 bytes for each channel.  
   
 **Format**  
 - The file is a concatenation.
@@ -48,12 +48,12 @@ The sender keep **secretly** the Ed25519 private key (for signing).
 
 Exemple to share:  
 `Channel::KeyEncryption::KeySignature`  
-`0x0130A1::7d2e9a4c1b8f3e5d0a6c9b2f4e7d1a0c::9d61b19deffd5a60ba844af492ec2cc44449c5697b32695c728c7c3cb9ae2`  
+`0x0130::7d2e9a4c1b8f3e5d0a6c9b2f4e7d1a0c::9d61b19deffd5a60ba844af492ec2cc44449c5697b32695c728c7c3cb9ae2`  
   
 Process:
-- Signing: Signs the compressed data with private $\text{Key}_\text{Signature}$ (Ed25519), truncates to 10 bytes.
-- Concatenation: `Signature (10)` + `Compressed data (...)`.
-- Encryption: Encrypts concatenation with AES-CCM (IV=11, MIC=5) and $\text{Key}_\text{Channel}$.
+- Signing: Signs the compressed data with private $\text{Key}_\text{Signature}$ (Ed25519), truncates to 8 bytes.
+- Concatenation: `Signature (8)` + `Compressed data (...)`.
+- Encryption: Encrypts concatenation with AES-CCM (IV=8, MIC=5) and $\text{Key}_\text{Channel}$.
 
 #### 3.2. Channel keys for reading and writing.
 
@@ -63,33 +63,19 @@ Keys shared with all listeners:
   
 Exemple to share:  
 `Channel::KeyEncryption::KeySignature`  
-`0x010001::e9c1d2b3a4f506172839405162738495::5e6b3d9f2c7a1b8e4d0c9a6b3f7e2d8c5a1b0e4f9d6c7b8a3f2e1d0c9a`  
+`0x0101::e9c1d2b3a4f506172839405162738495::5e6b3d9f2c7a1b8e4d0c9a6b3f7e2d8c5a1b0e4f9d6c7b8a3f2e1d0c9a`  
   
 Process:
-- Signing: Signs the compressed data with $\text{Key}_\text{Signature}$ (HMAC-SHA256), truncated to 10 bytes.
-- Concatenation: `Signature (10)` + `Compressed data (...)`.
-- Encryption: Encrypts concatenation with AES-CCM (IV=11, MIC=5) and $\text{Key}_\text{Channel}$.
+- Signing: Signs the compressed data with $\text{Key}_\text{Signature}$ (HMAC-SHA256), truncated to 8 bytes.
+- Concatenation: `Signature (8)` + `Compressed data (...)`.
+- Encryption: Encrypts concatenation with AES-CCM (IV=8, MIC=5) and $\text{Key}_\text{Channel}$.
   
-### 4. Fragmentation with `Next`
-
-The `Next` field is used for fragmentation by indicating which packet comes after the other in a packet chain, but it also constitutes a cryptographic proof preventing an attacker from reordering or modifying the fragments.
-  
-**Principle**  
-- Each packet contains a 2-byte `Next` field.
-- `Next = hash(Channel + Next (next packet) + Payload (next packet))`.
-- Last packet has `Next = 0x0000`.  
-  
-**Reconstruction**  
-- Receiver verifies that `Next` of the previous packet matches the hash of the current payload.
-- If a packet is missing or modified, the chain is invalid.
-  
-### **5. Anti-Replay and Integrity**
+### 4. Anti-Replay and Integrity
   
 - **TTL**: Limits relay count (prevents infinite loops).
-- **Cryptographic `Next`**: Prevents packet modification/reordering.
 - **MIC**: Detects tampering.
   
-### 6. Risk of collision
+### 5. Risk of collision
 
 #### MIC
 
