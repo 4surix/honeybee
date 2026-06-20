@@ -4,7 +4,7 @@
 ### **1. Encryption and Authentication**
 
 - **Algorithm**: AES-CCM-128 (16-bytes key).
-- **IV**: 8 bytes (`Sender (2) + Channel (2) + Random (4)`) for uniqueness.
+- **IV**: 10 bytes (`List (2) + Sender (2) + Channel (2) + Random (4)`) for uniqueness.
 - **MIC**: 5 bytes for authentication (tamper detection).
 
 #### Initialization Vector (IV)
@@ -53,7 +53,7 @@ Exemple to share:
 Process:
 - Signing: Signs the compressed data with private $\text{Key}_\text{Signature}$ (Ed25519), truncates to 8 bytes.
 - Concatenation: `Signature (8)` + `Compressed data (...)`.
-- Encryption: Encrypts concatenation with AES-CCM (IV=8, MIC=5) and $\text{Key}_\text{Channel}$.
+- Encryption: Encrypts concatenation with AES-CCM (IV=10, MIC=5) and $\text{Key}_\text{Channel}$.
 
 #### 3.2. Channel keys for reading and writing.
 
@@ -68,7 +68,7 @@ Exemple to share:
 Process:
 - Signing: Signs the compressed data with $\text{Key}_\text{Signature}$ (HMAC-SHA256), truncated to 8 bytes.
 - Concatenation: `Signature (8)` + `Compressed data (...)`.
-- Encryption: Encrypts concatenation with AES-CCM (IV=8, MIC=5) and $\text{Key}_\text{Channel}$.
+- Encryption: Encrypts concatenation with AES-CCM (IV=10, MIC=5) and $\text{Key}_\text{Channel}$.
   
 ### 4. Anti-Replay and Integrity
   

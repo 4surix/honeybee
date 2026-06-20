@@ -9,7 +9,6 @@
 | ------------- | ----- | ------------------------------------------------- | -------------------- |
 | **ID**        | 5/8   | Protocol identifier (`10100`).                    | `10100`              |
 | **Type**      | 3/8   | Type of the packet.                               | `010`                |
-| **TTL**       | 1     | Number of allowed relays (decremented per relay). | `0x05`               |
 
 #### 0.1 ID
 
@@ -30,10 +29,6 @@ Type provide information about the type of packet.
 | `110`  | _Reserved_      |
 | `111`  | _Reserved_      |
 
-#### 0.3 TTL
-
-The TTL indicates the number of times the packet must be relayed by any device. It prevents the packet from traveling too far unnecessarily.
-
 ---
 
 ### **1. Informations Format (7-29 bytes)**
@@ -44,9 +39,8 @@ The TTL indicates the number of times the packet must be relayed by any device. 
 | **Role**      | 1     | Primary `0x01` ou Secondary `0x02`.                | `0x01`               |
 | **Score**     | 1     |                                                    | `0x12`               |
 | **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
-| **Padding**   | 1     |                                                    | `0x00`               |
 | **Primary**   | 1     | Number of the primary neighbor.                    | `0x01`               |
-| **Devices Primary** | 22    | Contains, min 0, max 11 devices ID.          | -                    |
+| **Devices Primary** | 24    | Contains, min 0, max 12 devices ID.          | -                    |
 
 ---
 
@@ -64,14 +58,47 @@ The TTL indicates the number of times the packet must be relayed by any device. 
 
 | Field         | Bytes | Description                                      | Example            |
 | ------------- | ----- | ------------------------------------------------ | ------------------ |
+| **TTL**       | 1     | Number of allowed relays (decremented per relay).| `0x05`             |
+| **List**      | 2     | -                                                | See below          |
 | **Sender**    | 2     | Identifiant of the sender.                       | `0x1234`           |
 | **Channel**   | 2     | Identifiant of the channel.                      | `0x0111`           |
 | **Random**    | 4     | Random number between 0 and 2^40.                | `0x12345678`       |
 | **MIC**       | 5     | AES-CCM authentication tag. Message integrity check. | `0xA1B2C3D4E5` |
-| **List**      | 2     | -                                                | See below          |
 | **Payload**   | 1-14  | -                                                | See below          |
 
-#### 3.2. Channel (2 byte)
+#### 3.1. TTL
+
+The TTL indicates the number of times the packet must be relayed by any device. It prevents the packet from traveling too far unnecessarily.
+
+#### 3.2. List (2 bytes, 16 bits)
+
+| Field         | Bits  | Description                                      | Example            |
+| ------------- | ----- | ------------------------------------------------ | ------------------ |
+| **Chain**     | 4     | Chain ID for the actual Sender ID.               | `0010`             |
+| **Last**      | 6     | Index of the last packet in the group.           | `010011`           |
+| **Index**     | 6     | Position of the packet in the group.             | `000010`           |
+
+##### 3.2.1 Chain
+  
+Specifies the packet chain identifier.   
+A maximum of 16 chains can be created per `Sender ID`.   
+Initially, the first chain value is 0.  
+The value increments by 1 for each new chain created.  
+Once the value reaches 15, no further chains can be created; one must wait for the `Sender ID` to change for the `Chain` value to reset to 0.  
+  
+##### 3.2.2 Last
+
+This field specifies the index of the last packet in the packet chain. This makes it possible to determine how many packets make up the chain and to create the list (which will hold each packet) with the correct size.
+  
+##### 3.2.3 Index
+
+The position of the packet in the chain.
+
+#### 3.3. Sender (2 byte)
+
+
+
+#### 3.4. Channel (2 byte)
 
 | **Type**             | **Binary Format**     | **Description**                          |
 | -------------------- | --------------------- | ---------------------------------------- |
@@ -91,31 +118,7 @@ The randomly generated number serves two purposes:
 
 #### 3.4. MIC (5 bytes)
 
-AES-CCM authentication tag. Message integrity check.  
-
-#### 3.5. List (2 bytes, 16 bits)
-
-| Field         | Bits  | Description                                      | Example            |
-| ------------- | ----- | ------------------------------------------------ | ------------------ |
-| **Chain**     | 4     | Chain ID for the actual Sender ID.               | `0010`             |
-| **Last**      | 6     | Index of the last packet in the group.           | `010011`           |
-| **Index**     | 6     | Position of the packet in the group.             | `000010`           |
-
-##### 3.5.1 Chain
-  
-Specifies the packet chain identifier.   
-A maximum of 16 chains can be created per `Sender ID`.   
-Initially, the first chain value is 0.  
-The value increments by 1 for each new chain created.  
-Once the value reaches 15, no further chains can be created; one must wait for the `Sender ID` to change for the `Chain` value to reset to 0.  
-  
-##### 3.5.2 Last
-
-This field specifies the index of the last packet in the packet chain. This makes it possible to determine how many packets make up the chain and to create the list (which will hold each packet) with the correct size.  
-  
-##### 3.5.3 Index
-
-The position of the packet in the chain.  
+AES-CCM authentication tag. Message integrity check.    
 
 ---
 
@@ -123,7 +126,8 @@ The position of the packet in the chain.
 
 | Field         | Bytes | Description                                  | Example              |
 | ------------- | ----- | -------------------------------------------- | -------------------- |
+| **Sender**    | 2     |                                              | `0x1234`             |
+| **List**      | 2     | `List` of the packet concerned.              | `0x0471`             |
 | **Sender**    | 2     | `Sender ID` of the packet concerned.         | `0x1234`             |
 | **Channel**   | 2     | `Channel ID` of the packet concerned.        | `0x1234`             |
-| **List**      | 2     | `List` of the packet concerned.              | `0x0471`             |
 | **Type**      | 1     | Type of the ACK.                             | `0x04`               |

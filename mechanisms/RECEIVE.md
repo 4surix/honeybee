@@ -27,7 +27,7 @@
    - For each 14-byte segment:
      - Decrypt the encrypted payload using `AES-CCM` with:
        - **Key**: Shared key of the channel.
-       - **IV**: Constructed from the sender's identifier, channel identifier, and the random number; included in the packet.
+       - **IV**: Constructed from the list info, sender's identifier, channel identifier, and the random number; included in the packet.
      - The `MIC` is used to verify the integrity of the decrypted segment. If not valid, the message is rejected (integrity compromised).
 
 4. **Decompression and Data Extraction**
