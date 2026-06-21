@@ -38,6 +38,6 @@ HoneyBee distinguishes between two tiers of traffic for the Token Bucket impleme
 
 #### 2.3. Retransmission Logic (ELODRI & ACK MISSING)
 
-When the ELODRI mechanism triggers a retransmission (after $\mathrm{Chain Size} \times 1\mathrm{s}$ without an ACK), or an ACK MISSING is received, the retransmitted packet:
+When the ELODRI mechanism triggers a retransmission (after $\mathrm{Chain_size} \times 1\mathrm{s}$ without an ACK), or an ACK MISSING is received, the retransmitted packet: 
 - Consumes a token from the bucket like a new message.
 - Is placed at the head of the transmission queue to prioritize the completion of existing message chains over new data.

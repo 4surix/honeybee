@@ -158,9 +158,9 @@ $$Bonus_{\mathrm{seniority}} = \min\left(20, \frac{t}{15}\right) \times \frac{S_
 **$t$**: Uptime in seconds in the Primary role.
 
 **Examples**
-- If $S_{base} = 100$ and $t = 300$s -> $Bonus = 20$.
-- If $S_{base} = 100$ and $t = 60$s -> $Bonus = 4$.
-- If $S_{base} = 50$ and $t = 300$s -> $Bonus = 10$.
+- If $S_{\mathrm{base}} = 100$ and $t = 300\mathrm{s}$ -> $Bonus = 20$.
+- If $S_{\mathrm{base}} = 100$ and $t = 60\mathrm{s}$ -> $Bonus = 4$.
+- If $S_{\mathrm{base}} = 50$ and $t = 300\mathrm{s}$ -> $Bonus = 10$.
 
 #### **B. Critical Bridge Bonus**
 

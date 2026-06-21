@@ -2,12 +2,17 @@
 ## Packet Mechanism
 
 <img src="../img-frame.png">
-  
+
+0. [Head Common Format](#common)
 1. [Informations Format](#informations)
 2. [Neighbors Format](#neighbors)
 3. [Message Format](#message)
 4. [ACK Format](#ack)
   
+---
+
+<a name="common"></a>
+
 ### 0. Head Common Format (2 bytes)
 
 | Field         | Bytes | Description                                  | Example              |

@@ -10,7 +10,7 @@ If the ACK packet is lost, then nothing happens. Indeed, each packet is sent aro
 
 #### ELODRI logique (Ensure Least One Device Received It)
 
-If we only wait to receive an ACK MISSING packet before resending a data packet, it's problematic if our data packet is lost without anyone receiving it. To increase the chances of a device receiving it, if after $\mathrm{Numbers of packets in chain} \times 1\mathrm{s}$ of the last packet in the chain send, there is not at least one `ACK Successed`, then the first packet of the `Chain` is resent and another $\mathrm{Numbers of packets in chain} \times 1\mathrm{s}$ are waited. If after three attempts the process is abandoned.
+If we only wait to receive an ACK MISSING packet before resending a data packet, it's problematic if our data packet is lost without anyone receiving it. To increase the chances of a device receiving it, if after $\mathrm{Numbers\\_of\\_packets\\_in\\_chain} \times 1\mathrm{s}$ of the last packet in the chain send, there is not at least one `ACK Successed`, then the first packet of the `Chain` is resent and another $\mathrm{Numbers\\_of\\_packets\\_in\\_chain} \times 1\mathrm{s}$ are waited. If after three attempts the process is abandoned.
 
 ```mermaid
 %% Diagram of ELODRI Logic (Ensure Least One Device Received It)
@@ -91,6 +91,7 @@ sequenceDiagram
     DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 1
     DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 2
     DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 3
+    DeviceX ->> DeviceX: Check no packet missing
     DeviceX ->> DeviceN: ACK Succeeded Chain 1 Last 3 Index 3
     DeviceN ->> DeviceX: ACK Confirmed Chain 1 Last 3 Index 3
 ```
@@ -112,6 +113,7 @@ sequenceDiagram
     DeviceY ->> DeviceN: Packet Chain 1 Last 3 Index 2
     DeviceY ->> DeviceN: Packet Chain 1 Last 3 Index 3
 
+    DeviceN ->> DeviceN: Check no packet missing
     DeviceN ->> DeviceY: ACK Succeeded Chain 1 Last 3 Index 1
     DeviceY ->> DeviceN: ACK Confirmed Chain 1 Last 3 Index 1
 
@@ -119,9 +121,11 @@ sequenceDiagram
     DeviceN -->> DeviceX: Lost Packet Chain 1 Last 3 Index 2
     DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 3
 
+    DeviceX ->> DeviceX: Check no packet missing
     DeviceX ->> DeviceN: ACK Missing Chain 1 Last 3 Index 2
     DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 2
 
+    DeviceX ->> DeviceX: Check no packet missing
     DeviceX ->> DeviceN: ACK Succeeded Chain 1 Last 3 Index 1
     DeviceN ->> DeviceX: ACK Confirmed Chain 1 Last 3 Index 1
 ```
