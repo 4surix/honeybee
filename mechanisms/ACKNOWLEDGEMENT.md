@@ -1,7 +1,6 @@
 
 ## Acknowledgement Mechanism  
   
-  
 > [Acknowledgement (data networks) - Wikipedia](https://en.wikipedia.org/wiki/Acknowledgement_(data_networks))
 
 ### Functioning

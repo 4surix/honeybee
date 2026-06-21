@@ -133,7 +133,7 @@ $$S_{RSSI} = \max(0, \min(100, 2.5 \times (RSSI_{normalized} + 100)))$$
 
 Based on the transmission success rate _(successfully relayed packets (= ACK Succeeded received) / total relayed packets)_ over the last 100 transmissions :
 
-$$S_{fiab} = \mathrm{success\_rate} \times 100$$
+$$S_{fiab} = \mathrm{success\\_rate} \times 100$$
 
 **Initialization**: $S_{fiab} = 100$ for new nodes.
 
@@ -166,7 +166,7 @@ $$Bonus_{\mathrm{seniority}} = \min\left(20, \frac{t}{15}\right) \times \frac{S_
 
 A node is a Critical Bridge if it is the only link _(at 1 Mbps OR 125 kbps)_ between two Primary nodes that cannot hear each other directly. _Example: A BLE 5.0 node can be a Critical Bridge between a BLE 4.0 (1 Mbps) and a BLE 5.0 (125 kbps) node, because it transmits in both modes._ Dynamic and proportional to the node's importance :
 
-$$Bonus_{\mathrm{bridge}} = 20 \times \mathrm{number\_dependent\_Primary\_pairs}$$
+$$Bonus_{\mathrm{bridge}} = 20 \times \mathrm{number\\_dependent\\_Primary\\_pairs}$$
 
 * **Cap**: $Bonus_{\mathrm{bridge}} \le 100$.
 * **Condition**: A node is a Critical Bridge if it is the only physical link between two Primary nodes that cannot hear each other directly *(at 1 Mbps OR 125 kbps)*.
@@ -222,7 +222,7 @@ The overlap with a neighboring Primary is **> 75%**. **AND** this neighbor has a
 
 **Overlap Calculation**
 Only neighbors with an RSSI ≥ -90 dBm are considered.
-$\mathrm{overlap\_ratio} = \frac{\mathrm{number\_common\_neighbors}}{\mathrm{total\_number\_neighbors}}$
+$\mathrm{overlap\\_ratio} = \frac{\mathrm{number\\_common\\_neighbors}}{\mathrm{total\\_number\\_neighbors}}$
 
 #### **Rule 2: Survival (Secondary Nodes only)**
 
