@@ -5,7 +5,7 @@
 
 - **Algorithm**: AES-CCM-128 (16-bytes key).
 - **IV**: 10 bytes (`List (2) + Sender (2) + Channel (2) + Random (4)`) for uniqueness.
-- **MIC**: 5 bytes for authentication (tamper detection).
+- **MIC**: 6 bytes for authentication (tamper detection).
 
 #### Initialization Vector (IV)
 
@@ -43,9 +43,9 @@ Each field packet is stored in binary form in a file, with the following structu
 Keys shared with all listeners:
 - $\text{Key}_\text{Channel}$: Symmetric key (AES-128) for encryption.
 - $\text{Key}_\text{Signature}$: Ed25519 public key for the signature.
-
+  
 The sender keep **secretly** the Ed25519 private key (for signing).
-
+  
 Exemple to share:  
 `Channel::KeyEncryption::KeySignature`  
 `0x0130::7d2e9a4c1b8f3e5d0a6c9b2f4e7d1a0c::9d61b19deffd5a60ba844af492ec2cc44449c5697b32695c728c7c3cb9ae2`  
@@ -53,9 +53,9 @@ Exemple to share:
 Process:
 - Signing: Signs the compressed data with private $\text{Key}_\text{Signature}$ (Ed25519), truncates to 8 bytes.
 - Concatenation: `Signature (8)` + `Compressed data (...)`.
-- Encryption: Encrypts concatenation with AES-CCM (IV=10, MIC=5) and $\text{Key}_\text{Channel}$.
+- Encryption: Encrypts concatenation with AES-CCM (IV=10, MIC=6) and $\text{Key}_\text{Channel}$.
 
-#### 3.2. Channel keys for reading and writing.
+#### 3.2. Read-Write Channel Keys.
 
 Keys shared with all listeners:
 - $\text{Key}_\text{Channel}$: Symmetric key (AES-128) for encryption.
@@ -68,7 +68,7 @@ Exemple to share:
 Process:
 - Signing: Signs the compressed data with $\text{Key}_\text{Signature}$ (HMAC-SHA256), truncated to 8 bytes.
 - Concatenation: `Signature (8)` + `Compressed data (...)`.
-- Encryption: Encrypts concatenation with AES-CCM (IV=10, MIC=5) and $\text{Key}_\text{Channel}$.
+- Encryption: Encrypts concatenation with AES-CCM (IV=10, MIC=6) and $\text{Key}_\text{Channel}$.
   
 ### 4. Anti-Replay and Integrity
   
@@ -79,14 +79,12 @@ Process:
 
 #### MIC
 
-The length of MIC is 5 bytes (40 bits).
-
-The probability of collision for a space of N possible value (here, $2^{40}$ for 40 bits MIC) with `k` packets (here, $10^{6}$ for example) is approximated by :  
+The length of the MIC is 6 bytes (48 bits). The probability of a collision for a space of $N$ possible values (here, $2^{48}$ for a 48-bit MIC) with $k$ packets (here, $10^6$ for example) is approximated by:  
   
-$P(\text{collision}) \approx 1 - e^{-k^2 / (2N)}$  
-- $N = 2^{40}$ (number of possible MIC).  
-- $k = 10^{6}$ (number of packet exchanged). 
-  
-$P(\text{collision}) \approx 1 - e^{-(10^6)^2 / (2 \times 2^{40})} \approx 1 - e^{-10^{12} / 2^{41}} \approx 1 - e^{-0.4547} \approx 1 - 0.63 \approx 0.37$  
+$$P(\text{collision}) \approx 1 - e^{-k^2 / (2N)}$$
+- $N = 2^{48}$ (number of possible MIC values).
+- $k = 10^6$ (number of packets exchanged).
 
-The probability of collision for a 40-bit MIC ($N = 2^{40}$) with 1 million packets ($k = 10^6$) is approximately 37%.
+$$P(\text{collision}) \approx 1 - e^{-(10^6)^2 / (2 \times 2^{48})} \approx 1 - e^{-10^{12} / 2^{49}} \approx 1 - e^{-0.001776} \approx 0.001775$$
+
+The probability of a collision for a 48-bit MIC ($N = 2^{48}$) with 1 million packets ($k = 10^6$) is approximately **0.2%**.  

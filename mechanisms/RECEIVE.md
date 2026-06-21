@@ -32,7 +32,7 @@
 
 4. **Decompression and Data Extraction**
    - Once all segments are decrypted and concatenated:
-     - Read the first byte to determine the compression type (`SMAZ` or `ZSTD`).
+     - Read the first byte to determine the compression type (`SMAZ` or `LZ4`).
      - Decompress the data using the corresponding algorithm.
      - Extract the signature (first 8 bytes) and the message data.
 
@@ -47,8 +47,12 @@
 
 Certain well-placed Primary nodes might become overloaded with traffic. Penalizing their score would cause them to demote, leading to network instability ("flapping") and further packet loss during topology reorganization.
 
-The Primary node retains its status and score, but implements a Local Triage (Active Dropping) mechanism to protect core network operations : 
-- **Traffic Classification**: All network traffic is divided into two priority tiers:
-    - **High Priority (Control)**: Core routing protocol packets.
-    - **Low Priority (Data)**: Standard application payloads.
-- **Active Dropping**: If a Primary node exceeds its safe processing threshold *(> 10 relayed packets per second)*, it enters a defensive state. In this state, the node silently drops any newly received Low Priority (Data) packets, and send an `ACK Unabled`. High Priority (Control) packets are always processed normally. The node exits the defensive state once traffic drops back below the threshold.
+The Primary node retains its status and score, but implements a Local Triage (Active Dropping) mechanism to protect core network operations.
+
+**Traffic Classification**  
+All network traffic is divided into two priority tiers:
+- **High Priority (Control)**: Core routing protocol packets.
+- **Low Priority (Data)**: Standard application payloads. 
+  
+**Active Dropping**  
+If a Primary node exceeds its safe processing threshold *(> 30 relayed packets per second)*, it enters a defensive state. In this state, the node silently drops any newly received Low Priority (Data) packets, and send an `ACK Unabled`. High Priority (Control) packets are always processed normally. The node exits the defensive state once traffic drops back below the threshold. Devices that receive an `ACK Unabled` must slow down their packet transmission for 15 seconds.

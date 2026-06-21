@@ -13,7 +13,7 @@
 This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 
 - **Relay-based communication** between devices (ex: phone-to-phone).
-- **Fragmented data transmission** (14-byte payloads linked via `List` fields).
+- **Fragmented data transmission** (13-byte payloads linked via `List` fields).
 - **Secure and anonymous** messaging (AES-CCM encryption, channel keys, integrity checks).
 
 ### **1.2 Prerequisites**
@@ -40,7 +40,7 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 |                  | **HoneyBee**        | **Bluetooth Mesh**   | **Thread**         | **Zigbee**        | **LoRaWAN**        |
 | ---------------- | ------------------- | -------------------- | ------------------ | ----------------- | ------------------ |
 | **Provisioning** | Pre-shared key      | Dedicated            | Certificate / PSK  | Trust Center      | OTAA/ABP           |
-| **Size Payload** | Max 14 bytes        | Max 16 bytes         | Max 63 bytes       | Max 68 bytes      | Max 51-222 bytes   |
+| **Size Payload** | Max 13 bytes        | Max 16 bytes         | Max 63 bytes       | Max 68 bytes      | Max 51-222 bytes   |
 | **Security**     | AES-CCM-128 </br> Channels  | AES-CCM-128          | AES-128 </br> DTLS      | AES-128 </br> Trust Center | AES-128 </br> E2E optionnal |
 | **Range**        | ~30-50m _(BLE)_ </br> ~250m _(BLE LongRange)_ | ~30-50m              | ~30-50m                 | ~10-100m               | ~1-40 km                 |
 | **Latency**      | Low                 | Medium               | Low                | Medium            | High               |

@@ -1,18 +1,18 @@
+
 ## Network Mechanism
 
 ### **1. Overview**
 
 **Two modes :**
 - **Primary Node** 
-    - Send packets _(at 1 Mbps and 125 kbps)_
-    - Receive packets _(at 1 Mbps and 125 kbps)_
-    - Relays packets _(at 1 Mbps and 125 kbps)_
+    - Send packets *(at 1 Mbps and 125 kbps)*
+    - Receive packets *(at 1 Mbps and 125 kbps)*
+    - Relays packets *(at 1 Mbps and 125 kbps)*
     - Maintains the network
 - **Secondary Node**
-    - Send packets _(at 1 Mbps and 125 kbps)_
-    - Receive packets _(at 1 Mbps and 125 kbps)_
+    - Send packets *(at 1 Mbps and 125 kbps)*
+    - Receive packets *(at 1 Mbps and 125 kbps)*
 
-- BLE 5.0 nodes (125 kbps) are prioritized to become Primary nodes because they cover a wider area, thereby reducing the total number of Primary nodes needed.
 - BLE 5.0 nodes use dual transmission/reception (1 Mbps and 125 kbps) to ensure compatibility and maximum coverage.
 - BLE 4.0 nodes are restricted to transmitting and listening at 1 Mbps only.
 
@@ -26,14 +26,14 @@ A node's role is determined by its Score, updated in real time. The score consis
 
 Smoothed sigmoid function to avoid discontinuities :
 
-$$S_{bat} = \frac{100}{1 + e^{-0.2 (B - 40)}}$$
+$$S_{\text{bat}} = \frac{100}{1 + e^{-0.2 (B - 40)}}$$
 
-- $B$ : Remaining battery percentage (0 to 100).
-- **Examples**:
-    - $B = 80$ → $S_{bat} \approx 99.9$.
-    - $B = 40$ → $S_{bat} = 50$.
-    - $B = 33$ → $S_{bat} \approx 20.0$.
-    - $B = 20$ → $S_{bat} \approx 1.8$.
+$B$ : Remaining battery percentage (0 to 100).
+**Examples**:
+- $B = 80$ → $S_{\text{bat}} \approx 99.9$.
+- $B = 40$ → $S_{\text{bat}} = 50$.
+- $B = 33$ → $S_{\text{bat}} \approx 20.0$.
+- $B = 20$ → $S_{\text{bat}} \approx 1.8$.
 
 #### B. Mobility Score ($S_{mob}$)
 
@@ -51,28 +51,29 @@ $$V_{topo} = N_{new} + N_{lost}$$
 
 ###### B. Signal Volatility ($V_{sig}$)
 
-Measures the intensity of movement within existing links.  
-  
-Each of our neighbors sends an Informations packet every 5 seconds.  
-If we have 100 neighbors, we therefore receive 100 packets every 5 seconds, or 20 packets per second.  
-  
-$$\overline{\text{RSSI}}_{i} = \frac{\sum_{j}^{n = 3} \text{RSSI}_{(i \times 3) + j}}{3}$$
-  
-$$V_{sig} = \round(0.5 \times \sum_{i \in \text{common}} \left( \frac{|\overline{\text{RSSI}}_{i} - \overline{\text{RSSI}}_{i - 1} |}{Threshold} \right))$$  
-  
-**Threshold**: Set to **6 dB** variation counts as "1 movement unit". A sharper variation (ex: 18 dB) counts for 3 units, penalizing fast movements more heavily.  
-  
+Measures the intensity of movement within existing links using an Exponential Moving Average (EMA) filter to smooth out fast channel fading and temporary physical obstructions.
+
+Each of our neighbors sends an Informations packet every 10 seconds. If we have 100 neighbors, we therefore receive 100 packets every 10 seconds, or 10 packets per second.
+
+$$\text{RSSI}_{EMA, t} = (\alpha \times \text{RSSI}_{measured}) + ((1 - \alpha) \times \text{RSSI}_{EMA, t-1})$$
+
+$\alpha$ : Smoothing factor set to **0.2** to give significant historical weight and damp sudden radio anomalies.
+
+$$V_{sig} = \round\left(0.5 \times \sum_{i \in \text{common}} \left( \frac{|\text{RSSI}_{EMA, i} - \text{RSSI}_{EMA, i - 1} |}{Threshold} \right)\right)$$
+
+**Threshold**: Set to **6 dB** variation counts as "1 movement unit". A sharper variation (ex: 18 dB) counts for 3 units, penalizing fast movements more heavily.
+
 ##### 2. Global Formula and Score
-  
-$V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.  
-  
+
+$V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.
+
 $$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\text{total\_previous}})}$$
-  
-$N_{\text{total\_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.  
-  
-Adaptive penalization with a minimum Threshold of 10 points to guarantee that even a highly mobile node retains a minimal chance of relaying if no other node is available.  
-  
-For the first calculation, $k_{\text{new}} = k_{\text{last}} = 1.15$ and $\Delta t_{\text{new}} = \Delta t_{\text{last}} = 1$.  
+
+$N_{\text{total\_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.
+
+Adaptive penalization with a minimum Threshold of 10 points to guarantee that even a highly mobile node retains a minimal chance of relaying if no other node is available.
+
+For the first calculation, $k_{\text{new}} = k_{\text{last}} = 1.15$ and $\Delta t_{\text{new}} = \Delta t_{\text{last}} = 1$.
 
 $$k_{\text{new}} = k_{\text{last}} \times \frac{\Delta t_{\text{last}}}{\Delta t_{\text{new}}}$$
 
@@ -91,122 +92,131 @@ $$S_{\text{mob}} = \max(10, 100 \times e^{-k_{\text{new}} \cdot V_{rel}})$$
 - **$V_{rel} = 2.0$ (Fast movement)**. $S_{mob} \approx 10$.
     *Example: A node loses 4 neighbors ($N_{\text{lost}}=4$) and gains 4 new ones ($N_{new}=4$), with $N_{\text{total_previous}} = 4$. If $V_{sig} = 0$, then $V_{rel} = \frac{4 + 4}{4} = 2.0$.*
 
-#### C. Neighborhood Score ($S_{vois}$)
+#### C. Neighborhood Score ($S_{Neighborhood}$)
 
 Non-linear weighting to favor well-connected nodes, without a cap (to prioritize BLE 5.0 nodes which detect more neighbors) :
 
-$$S_{vois} = 100 \times \left(1 - e^{-0.1 \times N}\right)$$
+$$S_{\text{Neighborhood}} = 100 \times \left(1 - e^{-0.1 \times N}\right)$$
 
-* **$N$**: Total number of detected neighbors *(in 1 Mbps AND 125 kbps)*.
-* **Examples**:
-    * $N = 0$ → $S_{vois} = 0$.
-    * $N = 5$ → $S_{vois} \approx 40$.
-    * $N = 10$ → $S_{vois} \approx 60$.
-    * $N = 20$ → $S_{vois} \approx 86$.
+**$N$**: Total number of detected neighbors *(in 1 Mbps AND 125 kbps)*.
+**Examples**:
+- $N = 0$ → $S_{\text{Neighborhood}} = 0$.
+- $N = 5$ → $S_{\text{Neighborhood}} \approx 40$.
+- $N = 10$ → $S_{\text{Neighborhood}} \approx 60$.
+- $N = 20$ → $S_{\text{Neighborhood}} \approx 86$.
 
 #### D. Link Quality Score ($S_{RSSI}$)
 
 RSSI Normalization to compensate for differences between 1 Mbps and 125 kbps:
+- For **1 Mbps** packets: $RSSI_{normalized} = RSSI_{measured}$.
+- For **125 kbps** packets: $RSSI_{normalized} = RSSI_{measured} + 10$ _(since 125 kbps has ~10 dB better sensitivity, BLE 5.0 nodes are therefore not penalized by a lower RSSI at 125 kbps)_.
 
-* For **1 Mbps** packets: $RSSI_{normalized} = RSSI_{measured}$.
-* For **125 kbps** packets: $RSSI_{normalized} = RSSI_{measured} + 10$ (since 125 kbps has ~10 dB better sensitivity, BLE 5.0 nodes are therefore not penalized by a lower RSSI at 125 kbps).
-* **Final formula**:
+**Final formula**
 $$S_{RSSI} = \max(0, \min(100, 2.5 \times (RSSI_{normalized} + 100)))$$
 
-* **Examples**:
-    * $RSSI = -70$ dBm (1 Mbps) -> $S_{RSSI} = 2.5 \times 30 = 75$.
-    * $RSSI = -70$ dBm (125 kbps) -> $RSSI_{normalized} = -60$ -> $S_{RSSI} = 100$.
+**Examples**:
+- $RSSI = -70$ dBm (1 Mbps) -> $S_{RSSI} = 2.5 \times 30 = 75$.
+- $RSSI = -70$ dBm (125 kbps) -> $RSSI_{normalized} = -60$ -> $S_{RSSI} = 100$.
 
 #### E. Reliability History Score ($S_{fiab}$)
 
-Based on the transmission success rate _(successfully relayed packets (= ACK Succeeded received) / total relayed packets)_ over the last 100 transmissions :
+Based on the transmission success rate *(successfully relayed packets (= ACK Succeeded received) / total relayed packets)* over the last 100 transmissions :
 
 $$S_{fiab} = \text{success\_rate} \times 100$$
 
 **Initialization**: $S_{fiab} = 100$ for new nodes.
 
-#### F. Total Score Formula ($S_{base}$)
+#### F. Base Score Formula ($S_{base}$)
 
-$$S_{base} = ((S_{vois} \times 0.30) + (S_{mob} \times 0.20) + (S_{RSSI} \times 0.15) + (S_{fiab} \times 0.15)) \times (\frac{S_{bat}}{100})$$
+$$S_{base} = ((S_{\text{Neighborhood}} \times 0.30) + (S_{mob} \times 0.20) + (S_{RSSI} \times 0.15) + (S_{fiab} \times 0.15)) \times (\frac{S_{bat}}{100})$$
 
 $$S_{base} = \max(0, \min(100, S_{base}))$$
 
-**Explanations**:
-
-- **$S_{vois}$ has the highest weight (30%)**: Prioritizes nodes covering the most neighbors (BLE 5.0).
-- **$S_{mob}$**: 20% each (mobility).
-- **$S_{RSSI}$ and $S_{fiab}$**: 15% each (link quality and reliability).
-- **Mandatory range**: $S_{base} \in [0, 100]$.
-
 ---
 
-### **3. Score Modifiers (Bonus)**
+### **3. Score Modifiers (Bonus & Malus)**
 
 #### **A. Seniority Bonus (Primary Nodes only)**
 
-Decay to prevent obsolete Primary nodes :
+Provides long-term role stability for proven operational Primary nodes to prevent unnecessary structural re-elections:
 
-$$Bonus_{\text{seniority}} = \min\left(10, \frac{t}{4}\right) \times \frac{S_{base}}{100}$$
+$$Bonus_{\text{seniority}} = \min\left(20, \frac{t}{15}\right) \times \frac{S_{base}}{100}$$
 
-- **$t$**: Uptime in seconds in the Primary role.
-- **Examples**:
-    - If $S_{base} = 100$ and $t = 40$s -> $Bonus = 10$.
-    - If $S_{base} = 100$ and $t = 20$s -> $Bonus = 5$.
-    - If $S_{base} = 100$ and $t = 10$s -> $Bonus = 2.5$.
-    - If $S_{base} = 50$ and $t = 40$s -> $Bonus = 5$.
-    - If $S_{base} = 50$ and $t = 20$s -> $Bonus = 2.5$.
-    - If $S_{base} = 50$ and $t = 10$s -> $Bonus = 1.25$.
+**$t$**: Uptime in seconds in the Primary role.
 
-### **B. Critical Bridge Bonus**
+**Examples**
+- If $S_{base} = 100$ and $t = 300$s -> $Bonus = 20$.
+- If $S_{base} = 100$ and $t = 60$s -> $Bonus = 4$.
+- If $S_{base} = 50$ and $t = 300$s -> $Bonus = 10$.
 
-Dynamic and proportional to the node's importance :
+#### **B. Critical Bridge Bonus**
+
+A node is a Critical Bridge if it is the only link _(at 1 Mbps OR 125 kbps)_ between two Primary nodes that cannot hear each other directly. _Example: A BLE 5.0 node can be a Critical Bridge between a BLE 4.0 (1 Mbps) and a BLE 5.0 (125 kbps) node, because it transmits in both modes._ Dynamic and proportional to the node's importance :
 
 $$Bonus_{\text{bridge}} = 20 \times \text{number\_dependent\_Primary\_pairs}$$
 
 * **Cap**: $Bonus_{\text{bridge}} \le 100$.
-* **Condition**: A node is a Critical Bridge if it is the only physical link between two Primary nodes that cannot hear each other directly *(at 1 Mbps OR 125 kbps)*. 
+* **Condition**: A node is a Critical Bridge if it is the only physical link between two Primary nodes that cannot hear each other directly *(at 1 Mbps OR 125 kbps)*.
+
+#### **C. Demotion Malus (Anti Yo-Yo / Secondary Nodes only)**
+
+Prevents immediate re-promotion loops (flapping) caused by minor, localized score recoveries immediately after a node voluntarily relinquishes its Primary role:
+
+$$Malus_{\text{demotion}} = 20 \times e^{-\frac{t}{10}}$$
+
+**$t$**: Time elapsed in seconds since the node transitioned back to the Secondary role.
+
+**Behavior**
+At $t = 0$ seconds, a 20-point penalty is subtracted. The penalty exponentially decays and effectively disappears after approximately 30 seconds, letting the new Primary stabilize its connections.
+
+#### **D. Global Adjusted Score Formula ($S_{global}$)**
+
+The absolute score used by the state machine to determine all routing and role transitions:
+
+$$S_{global} = S_{base} + Bonus_{\text{seniority}} + Bonus_{\text{bridge}} - Malus_{\text{demotion}}$$
+
+$$S_{global} = \max(0, \min(100, S_{global}))$$
 
 ---
 
 ### **4. State Machine**
 
-#### **Global Constants**
+#### **Global Constants & Variables**
 
-| Constant | Value | Description |
-| --- | --- | --- |
-| **Hysteresis** | 15 | Score difference required to dethrone a current Primary node. |
-| **Redundancy Threshold** | 0.75 | Overlap threshold to trigger demotion. |
-| **Minimum RSSI Threshold** | -80 dBm | Minimum RSSI to consider a neighbor as "reliable". |
+| Constant / Variable        | Value / Formula                  | Description |
+| -------------------------- | -------------------------------- | ----------- |
+| **Dynamic Hysteresis**     | $15 + \round(10 \times V_{rel})$ | Adaptive score difference required to dethrone a current Primary node, significantly tightening restrictions in high-mobility environments. |
+| **Redundancy Threshold**   | 0.75                             | Overlap threshold to trigger demotion. |
+| **Minimum RSSI Threshold** | -90 dBm                          | Minimum RSSI to consider a neighbor as "reliable". |
 
 #### **Rule 0: Temperature Lock (Cooldown)**
 
 Adaptive lock based on the average velocity of neighbors (to prevent "flapping"):
 - **Promotion (Secondary -> Primary)**: $\text{Lock} = 5 + 5 \times V_{rel}$ ($5 < \text{Lock} < 15$).
-- **Demotion (Primary -> Secondary)**: $\text{Lock} = 2 + 4 \times V_{rel}$ ($2 < \text{Lock} < 10).
+- **Demotion (Primary -> Secondary)**: $\text{Lock} = 2 + 4 \times V_{rel}$ ($2 < \text{Lock} < 10$).
 
 #### **Rule 1: The Purger (Primary Nodes only)**
 
-A Primary node demotes itself to Secondary if any one of these conditions is met:
+A Primary node demotes itself to Secondary if any one of these conditions is met :
 
-1. **Absolute Competition**:
-- Another neighboring Primary has a score higher by more than 15 points (Hysteresis).
+**Absolute Competition**
+Another neighboring Primary has an $S_{global}$ higher by more than the computed Dynamic Hysteresis value.
 
-2. **Topological Redundancy**:
-- The overlap with a neighboring Primary is **> 75%**.
-- **AND** this neighbor has a better score (Neighbor > Self + 5).
+**Topological Redundancy**
+The overlap with a neighboring Primary is **> 75%**. **AND** this neighbor has a better score (Neighbor > Self + 5).
 
-**Overlap Calculation**:
-- Only neighbors with an RSSI ≥ -80 dBm are considered.
-- **Formula**: $\text{overlap\_ratio} = \frac{\text{number\_common\_neighbors}}{\text{total\_number\_neighbors}}$
+**Overlap Calculation**
+Only neighbors with an RSSI ≥ -90 dBm are considered.
+$\text{overlap\_ratio} = \frac{\text{number\_common\_neighbors}}{\text{total\_number\_neighbors}}$
 
 #### **Rule 2: Survival (Secondary Nodes only)**
 
 If a Secondary detects zero Primary nodes *(at 1 Mbps OR 125 kbps)*:
 
 1. It initiates a **random timer**:
-    $$\text{Delay} = \text{random}(1, 3) + 10 \times \left(1 - \frac{S_{base}}{100}\right)$$
-    - A node with $S_{base} = 100$ will wait between 1s and 3s.
-    - A node with $S_{base} = 0$ will wait between 11s and 13s.
+    $$\text{Delay} = \text{random}(1, 3) + 10 \times \left(1 - \frac{S_{global}}{100}\right)$$
+    - A node with $S_{global} = 100$ will wait between 1s and 3s.
+    - A node with $S_{global} = 0$ will wait between 11s and 13s.
 2. If a Primary is detected during this delay, the timer is canceled.
 3. If the delay expires, the node promotes itself to Primary.
 
@@ -214,18 +224,18 @@ If a Secondary detects zero Primary nodes *(at 1 Mbps OR 125 kbps)*:
 
 A Secondary promotes itself to Primary if:
 - It has "Critical Bridge" status ($Bonus_{\text{bridge}} > 0$).
-- **OR** its score exceeds the score of the best Primary in its vicinity by more than 15 points (Hysteresis).
+- **OR** its $S_{global}$ exceeds the score of the best Primary in its vicinity by more than the computed Dynamic Hysteresis value.
 - **OR** there are no Primary nodes with an $S_{RSSI} \ge 50$ in its vicinity (to guarantee good link quality).
-  
-**CSMA/CA Mechanism**:
-  
+
+**CSMA/CA Mechanism**
 If the promotion intent is validated, the node initiates a timer:
-$$\text{Delay} = \text{random}(1, 3) + 10 \times \left(1 - \frac{S_{base}}{100}\right)$$
-- A node with $S_{base} = 100$ will wait between 1s and 3s.
-- A node with $S_{base} = 0$ will wait between 11s and 13s.  
-  
-**Cancellation**: The intent is canceled only if another node with a higher $S_{base}$ promotes itself before the timer ends. Nodes with a high $S_{base}$ promote themselves faster.
-  
+$$\text{Delay} = \text{random}(1, 3) + 10 \times \left(1 - \frac{S_{global}}{100}\right)$$
+- A node with $S_{global} = 100$ will wait between 1s and 3s.
+- A node with $S_{global} = 0$ will wait between 11s and 13s.
+
+**Cancellation**
+The intent is canceled only if another node with a higher $S_{global}$ promotes itself before the timer ends. Nodes with a high $S_{global}$ promote themselves faster.
+
 ---
 
 ### **5. BLE 4.0 and 5.0 Device Management**
@@ -237,20 +247,12 @@ Bluetooth 5.0+ nodes transmit at 1 Mbps AND 125 kbps to :
 - **Maximize coverage** using 125 kbps (BLE 5.0).
 
 Transmission Frequency :
-- **Control packets** (election, core protocol): Every 5 seconds.
+- **Control packets** (election, core protocol): Every 10 seconds.
 - **Application packets**: According to application needs.
 
 #### **B. Neighbor Detection**
-
-Bluetooth LE 4.0+ nodes detect only 1 Mbps neighbors.
-
+  
+Bluetooth LE 4.0+ nodes detect only 1 Mbps neighbors.  
 Bluetooth LE 5.0+ nodes scan at 1 Mbps AND 125 kbps to detect:
 - BLE 4.0 neighbors (1 Mbps).
 - BLE 5.0 neighbors (1 Mbps + 125 kbps).
-
-#### **C. Critical Bridges**
-  
-A node is a Critical Bridge if it is the only link *(at 1 Mbps OR 125 kbps)* between two Primary nodes that cannot hear each other directly.  
-  
-**Example**:  
-A BLE 5.0 node can be a Critical Bridge between a BLE 4.0 (1 Mbps) and a BLE 5.0 (125 kbps) node, because it transmits in both modes.  

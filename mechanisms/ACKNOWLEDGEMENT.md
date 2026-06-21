@@ -11,7 +11,7 @@ If the ACK packet is lost, then nothing happens. Indeed, each packet is sent aro
 
 #### ELODRI logique (Ensure Least One Device Received It)
 
-If we only wait to receive an ACK MISSING packet before resending a data packet, it's problematic if our data packet is lost without anyone receiving it. To increase the chances of a device receiving it, in backend task asynchronous, if after $\text{Numbers of packets in group} \times 3\text{s}$ there is not at least one ACK indicating that the sent data has been correctly received, then the data is resent and another $\text{Numbers of packets in group} \times 3\text{s}$  are waited. If after three attempts _(so, $3 \times \text{Numbers of packets in group} \times 3\text{s}$ after the first send, four packets sent in total)_, the process is abandoned.
+If we only wait to receive an ACK MISSING packet before resending a data packet, it's problematic if our data packet is lost without anyone receiving it. To increase the chances of a device receiving it, if after $\text{Numbers of packets in chain} \times 1\text{s}$ of the last packet in the chain send, there is not at least one `ACK Successed`, then the first packet of the `Chain` is resent and another $\text{Numbers of packets in chain} \times 1\text{s}$ are waited. If after three attempts the process is abandoned.
 
 ```mermaid
 %% Diagram of ELODRI Logic (Ensure Least One Device Received It)
@@ -23,42 +23,37 @@ flowchart TD
     classDef endNode fill:#F44336,color:#fff,stroke:#C62828;
     classDef timeout fill:#FF9800,color:#fff,stroke:#E65100;
 
-    %% Start of the process
-    A[Start: Send a packet]:::start
-
-    %% Waiting for ACK
+    A[Start: Send a packet chain]:::start
     B[Wait DELAY]:::process
-
-    %% Decision: ACK received?
-    C{ACK received?}:::decision
+    C{ACK Succeeded received?}:::decision
 
     %% If ACK received
-    D[Packet received]:::process
+    D[ACK Succeeded received]:::process
     E[End: Success]:::endNode
 
     %% If no ACK received
-    F[No ACK]:::decision
-    G[Resend packet]:::process
+    F[No ACK Succeeded]:::decision
+    G[Resend the first packet of the chain]:::process
     H[Wait DELAY]:::process
 
     %% Second attempt
-    I{ACK received?}:::decision
-    J[Packet received]:::process
+    I{ACK Succeeded received?}:::decision
+    J[ACK Succeeded received]:::process
     K[End: Success]:::endNode
 
     %% If still no ACK
-    L[No ACK]:::decision
-    M[Resend packet]:::process
+    L[No ACK Succeeded]:::decision
+    M[Resend the first packet of the chain]:::process
     N[Wait DELAY]:::process
 
     %% Third attempt
     O{ACK received?}:::decision
-    P[Packet received]:::process
+    P[ACK Succeeded received]:::process
     Q[End: Success]:::endNode
 
     %% After 3 attempts
-    R[No ACK]:::decision
-    S[Resend packet]:::process
+    R[No ACK Succeeded]:::decision
+    S[Resend the first packet of the chain]:::process
     U[End: Abandon]:::endNode
 
     %% Connections
@@ -73,7 +68,7 @@ flowchart TD
     %% Legend
     subgraph Legend
         direction TB
-        L1[DELAY = Numbers of packets in group x 3s]:::timeout
+        L1[DELAY = Numbers of packets in group x 1s]:::timeout
         L2[Max 3 attempts]:::process
     end
 ```
@@ -84,13 +79,13 @@ ACKs are processed with priority by the network.
 ### Types
 
 | Bit    | Name        | Description |
-| ------ | ----------- | ----------- |
-| `0x01` | Missing     | The receiving device did not receive the packet. |
-| `0x03` | Unabled     | The receiving device **cannot process** the packet. |
-| `0x07` | Denied      | The receiving device **will not process** the packet. |
-| `0x0F` | Duplicated  | The receiving device already received this packet. |
+| ------ | ----------- | ------------------------------------------------------------- |
+| `0x01` | Missing     | The receiving device did not receive the packet.              |
+| `0x03` | Unabled     | The receiving device **cannot process** the packet.           |
+| `0x07` | Denied      | The receiving device **will not process** the packet.         |
+| `0x0F` | Duplicated  | The receiving device already received this packet.            |
 | `0x1F` | Succeeded   | The receiving device has received the entire packet(s) group. |
-| `0x3F` | _Reserved_  | |
+| `0x3F` | Confirmed   | The sender device confirm has received the ACK Succeeded.     |
 | `0x7F` | _Reserved_  | |
 | `0xFF` | _Reserved_  | |
 
@@ -100,10 +95,11 @@ sequenceDiagram
     participant DeviceX as Your device
     participant DeviceN as Other device
 
-    DeviceN ->> DeviceX: Packet Group 1 Index 1
-    DeviceN ->> DeviceX: Packet Group 1 Index 2
-    DeviceN ->> DeviceX: Packet Group 1 Index 3
-    DeviceX ->> DeviceN: ACK Succeeded Group 1
+    DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 1
+    DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 2
+    DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 3
+    DeviceX ->> DeviceN: ACK Succeeded Chain 1 Last 3 Index 3
+    DeviceN ->> DeviceX: ACK Confirmed Chain 1 Last 3 Index 3
 ```
 
 If we are missing a packet, we must send an ACK packet with the type `MISSING` and the IV of the missing packet.
@@ -119,13 +115,20 @@ sequenceDiagram
     participant DeviceN as Any device
     participant DeviceY as Other device
 
-    DeviceY ->> DeviceN: Packet Group 1 Index 1
-    DeviceY ->> DeviceN: Packet Group 1 Index 2
-    DeviceY ->> DeviceN: Packet Group 1 Index 3
-    DeviceN ->> DeviceX: Packet Group 1 Index 1
-    DeviceN -->> DeviceX: Lost Packet Group 1 Index 2
-    DeviceN ->> DeviceX: Packet Group 1 Index 3
-    DeviceX ->> DeviceN: MISSING Packet Group 1 Index 2
-    DeviceN ->> DeviceX: Packet Group 1 Index 2
-    DeviceX ->> DeviceN: ACK Succeeded Group 1
+    DeviceY ->> DeviceN: Packet Chain 1 Last 3 Index 1
+    DeviceY ->> DeviceN: Packet Chain 1 Last 3 Index 2
+    DeviceY ->> DeviceN: Packet Chain 1 Last 3 Index 3
+
+    DeviceN ->> DeviceY: ACK Succeeded Chain 1 Last 3 Index 1
+    DeviceY ->> DeviceN: ACK Confirmed Chain 1 Last 3 Index 1
+
+    DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 1
+    DeviceN -->> DeviceX: Lost Packet Chain 1 Last 3 Index 2
+    DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 3
+
+    DeviceX ->> DeviceN: ACK Missing Chain 1 Last 3 Index 2
+    DeviceN ->> DeviceX: Packet Chain 1 Last 3 Index 2
+
+    DeviceX ->> DeviceN: ACK Succeeded Chain 1 Last 3 Index 1
+    DeviceN ->> DeviceX: ACK Confirmed Chain 1 Last 3 Index 1
 ```

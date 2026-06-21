@@ -5,10 +5,10 @@
 
 ### 0. Head Common Format (2 bytes)
 
-| Field         | Bytes | Description                                       | Example              |
-| ------------- | ----- | ------------------------------------------------- | -------------------- |
-| **ID**        | 5/8   | Protocol identifier (`10100`).                    | `10100`              |
-| **Type**      | 3/8   | Type of the packet.                               | `010`                |
+| Field         | Bytes | Description                                  | Example              |
+| ------------- | ----- | -------------------------------------------- | -------------------- |
+| **ID**        | 5/8   | Protocol identifier (`10100`).               | `10100`              |
+| **Type**      | 3/8   | Type of the packet.                          | `010`                |
 
 #### 0.1 ID
 
@@ -33,24 +33,24 @@ Type provide information about the type of packet.
 
 ### **1. Informations Format (7-29 bytes)**
 
-| Field         | Bytes | Description                                        | Example              |
-| ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 2     | Identifiant of the sender.                         | `0x1234`             |
-| **Role**      | 1     | Primary `0x01` ou Secondary `0x02`.                | `0x01`               |
-| **Score**     | 1     |                                                    | `0x12`               |
-| **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
-| **Primary**   | 1     | Number of the primary neighbor.                    | `0x01`               |
-| **Devices Primary** | 24    | Contains, min 0, max 12 devices ID.          | -                    |
+| Field         | Bytes | Description                                    | Example              |
+| ------------- | ----- | ---------------------------------------------- | -------------------- |
+| **Sender**    | 2     | Identifiant of the sender.                     | `0x1234`             |
+| **Role**      | 1     | Primary `0x01` ou Secondary `0x02`.            | `0x01`               |
+| **Score**     | 1     |                                                | `0x12`               |
+| **Neighbor**  | 1     | Number of the neighbor.                        | `0xA1`               |
+| **Primary**   | 1     | Number of the primary neighbor.                | `0x01`               |
+| **Devices Primary** | 24    | Contains, min 0, max 12 devices ID.      | -                    |
 
 ---
 
 ### **2. Neighbors Format (3-29 bytes)**
 
-| Field         | Bytes | Description                                        | Example              |
-| ------------- | ----- | -------------------------------------------------- | -------------------- |
-| **Sender**    | 2     | Identifiant of the sender.                         | `0x123456`           |
-| **Neighbor**  | 1     | Number of the neighbor.                            | `0xA1`               |
-| **Devices Neighbor** | 26    | Contains, min 0, max 13 devices ID.         | -                    |
+| Field         | Bytes | Description                                    | Example              |
+| ------------- | ----- | ---------------------------------------------- | -------------------- |
+| **Sender**    | 2     | Identifiant of the sender.                     | `0x123456`           |
+| **Neighbor**  | 1     | Number of the neighbor.                        | `0xA1`               |
+| **Devices Neighbor** | 26    | Contains, min 0, max 13 devices ID.     | -                    |
 
 ---
 
@@ -63,8 +63,8 @@ Type provide information about the type of packet.
 | **Sender**    | 2     | Identifiant of the sender.                       | `0x1234`           |
 | **Channel**   | 2     | Identifiant of the channel.                      | `0x0111`           |
 | **Random**    | 4     | Random number between 0 and 2^40.                | `0x12345678`       |
-| **MIC**       | 5     | AES-CCM authentication tag. Message integrity check. | `0xA1B2C3D4E5` |
-| **Payload**   | 1-14  | -                                                | See below          |
+| **MIC**       | 6     | AES-CCM authentication tag. Message integrity check. | `0xA1B2C3D4E5` |
+| **Payload**   | 1-13  | -                                                | See below          |
 
 #### 3.1. TTL
 
@@ -96,7 +96,7 @@ The position of the packet in the chain.
 
 #### 3.3. Sender (2 byte)
 
-
+The device sent the packet.
 
 #### 3.4. Channel (2 byte)
 
@@ -110,15 +110,24 @@ The position of the packet in the chain.
 | **Technical & Test** | `0000 0000 0000 001M` | Channels used for testing, debugging, or technical uses.   |
 | **Reserved**         | `0000 0000 0000 000M` | Channels reserved.                              |
 
-#### 3.3. Random (4 byte)
+#### 3.5. Random (4 byte)
 
 The randomly generated number serves two purposes:
 - It prevents two packets sent over the network from having the same IV.
 - It prevents an attacker from predicting the next IV packet.
 
-#### 3.4. MIC (5 bytes)
+#### 3.6. MIC (6 bytes)
 
-AES-CCM authentication tag. Message integrity check.    
+AES-CCM authentication tag. Message integrity check. 
+
+#### 3.7. Encrypted Payload & Compressed data (1-13 bytes)
+
+**Compression algorithms**  
+  
+| Algorithm | Identifier | Description                                       |
+| --------- | ---------- | ------------------------------------------------- |
+| SMAZ      | `0x01`     | For small data _(less, or egal, than 200 bytes)_  |
+| LZ4       | `0x02`     | For large data _(more than 200 bytes)_            |
 
 ---
 
@@ -126,7 +135,7 @@ AES-CCM authentication tag. Message integrity check.
 
 | Field         | Bytes | Description                                  | Example              |
 | ------------- | ----- | -------------------------------------------- | -------------------- |
-| **Sender**    | 2     |                                              | `0x1234`             |
+| **Sender**    | 2     | The device sent the packet.                  | `0x1234`             |
 | **List**      | 2     | `List` of the packet concerned.              | `0x0471`             |
 | **Sender**    | 2     | `Sender ID` of the packet concerned.         | `0x1234`             |
 | **Channel**   | 2     | `Channel ID` of the packet concerned.        | `0x1234`             |

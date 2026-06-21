@@ -15,9 +15,9 @@
 It is designed for:
 - **Device-to-device relaying**.
 - **Secure data transmission** (AES-CCM encryption, channels-based keys).
-- **Fragmentation** of long messages into 14-byte payloads, linked via `List` fields.
+- **Fragmentation** of long messages into 13-byte payloads, linked via `List` fields.
 - **Secure P2P messaging** with fragmentation and relay (ex: chat).
-- **Very low debit**: Send 840 bytes per minute.
+- **Very low debit**: Send max 13 kilo-bytes _(of data after compression)_ per 15 minutes.
 
 Key Features:
 - **Easy and low provisioning**.
