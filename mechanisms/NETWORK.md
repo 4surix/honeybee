@@ -78,7 +78,7 @@ $$V_{sig} = \mathrm{round}\left(0.5 \times \sum_{i \in \mathrm{common}} \left( \
 
 $V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.
 
-$$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\mathrm{total_previous}})}$$
+$$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\mathrm{total\\_previous}})}$$
 
 $N_{\mathrm{total_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.
 

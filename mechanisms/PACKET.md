@@ -13,7 +13,7 @@
 
 <a name="common"></a>
 
-### 0. Head Common Format (2 bytes)
+### 0. Head Common Format (1 bytes)
 
 | Field         | Bytes | Description                                  | Example              |
 | ------------- | ----- | -------------------------------------------- | -------------------- |
@@ -43,7 +43,7 @@ Type provide information about the type of packet.
 
 <a name="informations"></a>
 
-### **1. Informations Format (7-29 bytes)**
+### **1. Informations Format (6-30 bytes)**
 
 | Field         | Bytes | Description                                    | Example              |
 | ------------- | ----- | ---------------------------------------------- | -------------------- |
@@ -58,7 +58,7 @@ Type provide information about the type of packet.
 
 <a name="neighbors"></a>
 
-### **2. Neighbors Format (3-29 bytes)**
+### **2. Neighbors Format (3-30 bytes)**
 
 | Field         | Bytes | Description                                    | Example              |
 | ------------- | ----- | ---------------------------------------------- | -------------------- |
@@ -70,7 +70,7 @@ Type provide information about the type of packet.
 
 <a name="message"></a>
 
-### **3. Message Format (16-29 bytes)**
+### **3. Message Format (19-30 bytes)**
 
 | Field         | Bytes | Description                                      | Example            |
 | ------------- | ----- | ------------------------------------------------ | ------------------ |
@@ -149,7 +149,7 @@ AES-CCM authentication tag. Message integrity check.
 
 <a name="ack"></a>
 
-### **4. ACK Format (7 bytes)**
+### **4. ACK Format (9 bytes)**
 
 | Field         | Bytes | Description                                  | Example              |
 | ------------- | ----- | -------------------------------------------- | -------------------- |

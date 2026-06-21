@@ -7,10 +7,10 @@
 1. **Verification**
    1. The first 5 bits must be `10100`.
    2. Get the next 3 bits (`Type`) and check if the size of the packet is logic :
-      - `Type == 001` -> Minimum 9 bytes size, Max 31 bytes, Always odd.
-      - `Type == 010` -> Minimum 5 bytes size, Max 31 bytes, Always odd.
-      - `Type == 011` -> Minimum 18 bytes size, Max 31 bytes.
-      - `Type == 100` -> Exactly 9 bytes size.
+      - `Type == 001` -> Minimum 7 bytes size, Max 31 bytes, Always odd.
+      - `Type == 010` -> Minimum 4 bytes size, Max 31 bytes, Always even.
+      - `Type == 011` -> Minimum 19 bytes size, Max 31 bytes.
+      - `Type == 100` -> Exactly 10 bytes size.
    3. If the packet is already in the cache, it is ignored. Otherwise, proceed to **Storage**.
 
 2. **Storage**
