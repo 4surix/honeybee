@@ -6,7 +6,9 @@
 
 ---
 
-## **1. Introduction** {#intro}
+<a name="intro"></a>
+
+## 1. Introduction
 
 ### **1.1 Purpose**
 
@@ -23,7 +25,9 @@ This document describes a **Bluetooth Low Energy (BLE)** protocol for:
 
 ---
 
-## **2. Protocol Overview** {#overview}
+<a name="overview"></a>
+
+## 2. Protocol Overview
 
 ### **2.1 Resume**
 
@@ -62,7 +66,9 @@ sequenceDiagram
 
 ---
 
-## 3. Mechanisms {#mechanisms}
+<a name="mechanisms"></a>
+
+## 3. Mechanisms
 
 - [Acknowledgement Mechanism](mechanisms/ACKNOWLEDGEMENT.md)
 - [Channels Mechanism](mechanisms/CHANNELS.md)

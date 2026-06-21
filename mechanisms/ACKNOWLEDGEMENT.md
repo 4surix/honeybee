@@ -11,17 +11,11 @@ If the ACK packet is lost, then nothing happens. Indeed, each packet is sent aro
 
 #### ELODRI logique (Ensure Least One Device Received It)
 
-If we only wait to receive an ACK MISSING packet before resending a data packet, it's problematic if our data packet is lost without anyone receiving it. To increase the chances of a device receiving it, if after $\text{Numbers of packets in chain} \times 1\text{s}$ of the last packet in the chain send, there is not at least one `ACK Successed`, then the first packet of the `Chain` is resent and another $\text{Numbers of packets in chain} \times 1\text{s}$ are waited. If after three attempts the process is abandoned.
+If we only wait to receive an ACK MISSING packet before resending a data packet, it's problematic if our data packet is lost without anyone receiving it. To increase the chances of a device receiving it, if after $\mathrm{Numbers of packets in chain} \times 1\mathrm{s}$ of the last packet in the chain send, there is not at least one `ACK Successed`, then the first packet of the `Chain` is resent and another $\mathrm{Numbers of packets in chain} \times 1\mathrm{s}$ are waited. If after three attempts the process is abandoned.
 
 ```mermaid
 %% Diagram of ELODRI Logic (Ensure Least One Device Received It)
 flowchart TD
-    %% Styles
-    classDef start fill:#4CAF50,color:#fff,stroke:#2E7D32;
-    classDef process fill:#E3F2FD,stroke:#90CAF9;
-    classDef decision fill:#FFEB3B,stroke:#FFA000;
-    classDef endNode fill:#F44336,color:#fff,stroke:#C62828;
-    classDef timeout fill:#FF9800,color:#fff,stroke:#E65100;
 
     A[Start: Send a packet chain]:::start
     B[Wait DELAY]:::process

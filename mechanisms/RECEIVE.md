@@ -31,14 +31,13 @@
      - The `MIC` is used to verify the integrity of the decrypted segment. If not valid, the message is rejected (integrity compromised).
 
 4. **Decompression and Data Extraction**
-   - Once all segments are decrypted and concatenated:
-     - Read the first byte to determine the compression type (`SMAZ` or `LZ4`).
-     - Decompress the data using the corresponding algorithm.
-     - Extract the signature (first 8 bytes) and the message data.
+   - Once all segments are decrypted and concatenated...
+   - ...read the first byte to determine the compression type (`SMAZ` or `LZ4`).
+   - Extract the signature (first 8 bytes) and the compressed data (other bytes).
 
 5. **Signature Verification**
-   - The receiver recalculates the signature from the message data.
-   - If the calculated signature matches the received one, the message is valid and can be processed.
+   - Recalculates the signature from the compressed data.
+   - If the calculated signature matches the received one, the compressed data is valid and can be decompress using the corresponding algorithm. 
    - Otherwise, the message is rejected (integrity compromised).
 
 ---
