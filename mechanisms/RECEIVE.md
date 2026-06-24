@@ -7,10 +7,10 @@
 1. **Verification**
    1. The first 5 bits must be `10100`.
    2. Get the next 3 bits (`Type`) and check if the size of the packet is logic :
-      - `Type == 001` -> Minimum 9 bytes size, Max 31 bytes, Always odd.
-      - `Type == 010` -> Minimum 5 bytes size, Max 31 bytes, Always odd.
-      - `Type == 011` -> Minimum 18 bytes size, Max 31 bytes.
-      - `Type == 100` -> Exactly 9 bytes size.
+      - `Type == 001` -> Minimum 7 bytes size, Max 31 bytes, Always odd.
+      - `Type == 010` -> Minimum 4 bytes size, Max 31 bytes, Always even.
+      - `Type == 011` -> Minimum 19 bytes size, Max 31 bytes.
+      - `Type == 100` -> Exactly 10 bytes size.
    3. If the packet is already in the cache, it is ignored. Otherwise, proceed to **Storage**.
 
 2. **Storage**
@@ -32,13 +32,8 @@
 
 4. **Decompression and Data Extraction**
    - Once all segments are decrypted and concatenated...
-   - ...read the first byte to determine the compression type (`SMAZ` or `LZ4`).
-   - Extract the signature (first 8 bytes) and the compressed data (other bytes).
-
-5. **Signature Verification**
-   - Recalculates the signature from the compressed data.
-   - If the calculated signature matches the received one, the compressed data is valid and can be decompress using the corresponding algorithm. 
-   - Otherwise, the message is rejected (integrity compromised).
+   - ...read the first byte to determine the compression type (`No compression` or `Deflate (zlib)`).
+   - Extract the compressed? data (other bytes).
 
 ---
 
