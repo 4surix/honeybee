@@ -71,11 +71,11 @@ Measures the intensity of movement within existing links using an Exponential Mo
 
 Each of our neighbors sends an Informations packet nominally every 10 seconds (jittered 8–12 s per emission, §5.A). If we have 100 neighbors, we therefore receive 100 packets every 10 seconds on average, or 10 packets per second.
 
-$$\mathrm{RSSI}_{EMA, t} = (\alpha \times \mathrm{RSSI}_{measured}) + ((1 - \alpha) \times \mathrm{RSSI}_{EMA, t-1})$$
+$$\mathrm{RSSI}_{\text{EMA}, t} = (\alpha \times \mathrm{RSSI}_{measured}) + ((1 - \alpha) \times \mathrm{RSSI}_{\text{EMA}, t-1})$$
 
 $\alpha$ : Smoothing factor set to **0.2** to give significant historical weight and damp sudden radio anomalies.
 
-$$V_{sig} = \mathrm{round}\left(0.5 \times \sum_{i \in \mathrm{common}} \left( \frac{|\mathrm{RSSI}_{EMA, i} - \mathrm{RSSI}_{EMA, i - 1} |}{Threshold} \right)\right)$$
+$$V_{sig} = \mathrm{round}\left(0.5 \times \sum_{i \in \mathrm{common}} \left( \frac{|\mathrm{RSSI}_{\text{EMA}, i} - \mathrm{RSSI}_{\text{EMA}, i - 1} |}{\text{Threshold}} \right)\right)$$
 
 **Threshold**: Set to **6 dB** variation counts as "1 movement unit". A sharper variation (ex: 18 dB) counts for 3 units, penalizing fast movements more heavily.
 
@@ -83,25 +83,25 @@ $$V_{sig} = \mathrm{round}\left(0.5 \times \sum_{i \in \mathrm{common}} \left( \
 
 $V_{rel}$ is a unitless ratio representing the average volatility per neighbor from the previous cycle, normalized to allow relative comparison between nodes. The relative volatility is fed into an exponential function to calculate the final score.  
   
-$$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\mathrm{total\\_previous}})}$$  
+$$V_{rel} = \dfrac{V_{topo} + V_{sig}}{\max(1, N_{\mathrm{total\_previous}})}$$  
   
 $N_{\mathrm{total_previous}}$: Total number of neighbors in the previous cycle (T-1), including those lost in T.  
   
 Adaptive penalization with a minimum Threshold of 10 points to guarantee that even a highly mobile node retains a minimal chance of relaying if no other node is available.  
   
-**Units (normative)**: $\\Delta t$ is measured in **nominal cycle periods** — one cycle = one $S_{\\mathrm{mob}}$ evaluation, nominally the 10 s beacon period. The recurrence below is scale-invariant (only the ratio $\\Delta t_{\\mathrm{last}} / \\Delta t_{\\mathrm{new}}$ matters), but the initialization uses this unit.
+**Units (normative)**: $\Delta t$ is measured in **nominal cycle periods** — one cycle = one $S_{\mathrm{mob}}$ evaluation, nominally the 10 s beacon period. The recurrence below is scale-invariant (only the ratio $\Delta t_{\mathrm{last}} / \Delta t_{\mathrm{new}}$ matters), but the initialization uses this unit.
 
-For the first calculation, $k_{\\mathrm{new}} = k_{\\mathrm{last}} = 1.15$ and $\\Delta t_{\\mathrm{new}} = \\Delta t_{\\mathrm{last}} = 1$ (one nominal cycle — the §3 examples assume nominal cycles).  
+For the first calculation, $k_{\mathrm{new}} = k_{\mathrm{last}} = 1.15$ and $\Delta t_{\mathrm{new}} = \Delta t_{\mathrm{last}} = 1$ (one nominal cycle — the §3 examples assume nominal cycles).  
 
-$$k_{\\mathrm{new}} = \\mathrm{clamp}\\left(k_{\\mathrm{last}} \\times \\frac{\\Delta t_{\\mathrm{last}}}{\\Delta t_{\\mathrm{new}}},\ 0.5,\ 3\\right)$$
+$$k_{\mathrm{new}} = \mathrm{clamp}\left(k_{\mathrm{last}} \times \frac{\Delta t_{\mathrm{last}}}{\Delta t_{\mathrm{new}}}, 0.5, 3\right)$$
 
-$$S_{\\mathrm{mob}} = \\max(10, 100 \\times e^{-k_{\\mathrm{new}} \\cdot V_{rel}})$$
+$$S_{\mathrm{mob}} = \max(10, 100 \times e^{-k_{\mathrm{new}} \cdot V_{rel}})$$
 
-- $k_{\\mathrm{new}}$ : The k used in the actual cycle (T).
-- $k_{\\mathrm{last}}$ : The k used in the previous cycle (T-1).
-- $\\Delta t_{\\mathrm{new}}$ : The time between the previous cycle and the actual cycle, in nominal cycle periods.
-- $\\Delta t_{\\mathrm{last}}$ : The time used in the previous cycle (T-1), same unit.
-- **Clamp (normative)**: $k \\in [0.5, 3]$. The product telescopes ($k_n = 1.15 \\times \\Delta t_{init} / \\Delta t_n$ — intermediate ratios cancel, so $k$ tracks only the *current* cycle length, there is no compounding drift); the clamp nevertheless bounds the single-cycle swings that irregular sampling causes (beacon jitter 8–12 s, missed or delayed cycles), giving the exponential a hard floor and ceiling.
+- $k_{\mathrm{new}}$ : The k used in the actual cycle (T).
+- $k_{\mathrm{last}}$ : The k used in the previous cycle (T-1).
+- $\Delta t_{\mathrm{new}}$ : The time between the previous cycle and the actual cycle, in nominal cycle periods.
+- $\Delta t_{\mathrm{last}}$ : The time used in the previous cycle (T-1), same unit.
+- **Clamp (normative)**: $k \in [0.5, 3]$. The product telescopes ($k_n = 1.15 \times \Delta t_{init} / \Delta t_n$ — intermediate ratios cancel, so $k$ tracks only the *current* cycle length, there is no compounding drift); the clamp nevertheless bounds the single-cycle swings that irregular sampling causes (beacon jitter 8–12 s, missed or delayed cycles), giving the exponential a hard floor and ceiling.
 
 ##### 3. Calculation Examples (k = 1.15)
 
@@ -130,28 +130,28 @@ $$S_{\mathrm{Neighborhood}} = 100 \times \left(1 - e^{-0.1 \times N}\right)$$
 
 RSSI Normalization to compensate for differences between 1 Mbps and 125 kbps: 
 
-- For **1 Mbps** packets: $RSSI_{normalized} = RSSI_{measured}$.
-- For **125 kbps** packets: $RSSI_{normalized} = RSSI_{measured} + 10$ _(since 125 kbps has ~10 dB better sensitivity, BLE 5.0 nodes are therefore not penalized by a lower RSSI at 125 kbps)_.
+- For **1 Mbps** packets: $\text{RSSI}_{\text{normalized}} = \text{RSSI}_{\text{normalized}}$.
+- For **125 kbps** packets: $\text{RSSI}_{\text{normalized}} = \text{RSSI}_{\text{normalized}} + 10$ _(since 125 kbps has ~10 dB better sensitivity, BLE 5.0 nodes are therefore not penalized by a lower RSSI at 125 kbps)_.
 
 **Final formula**
 
-$$S_{RSSI} = \max(0, \min(100, 2.5 \times (RSSI_{normalized} + 100)))$$
+$$S_{\text{RSSI}} = \max(0, \min(100, 2.5 \times (\text{RSSI}_{\text{normalized}} + 100)))$$
 
 **Examples**:
 
-- $RSSI = -70$ dBm (1 Mbps) -> $S_{RSSI} = 2.5 \times 30 = 75$.
-- $RSSI = -70$ dBm (125 kbps) -> $RSSI_{normalized} = -60$ -> $S_{RSSI} = 100$.
+- $\text{RSSI} = -70$ dBm (1 Mbps) -> $S_{\text{RSSI}} = 2.5 \times 30 = 75$.
+- $\text{RSSI} = -70$ dBm (125 kbps) -> $\text{RSSI}_{\text{normalized}} = -60$ -> $S_{\text{RSSI}} = 100$.
 
 
 **RSSI global (multi-neighbor aggregation).** A node typically hears multiple neighbors. For each reliable neighbor (RSSI ≥ -90 dBm), the node maintains an **individual EMA** of its normalized RSSI, updated on every received `Informations` (0x01) beacon from that neighbor:
 
-$$RSSI_{EMA, i, t} = (0.2 \times RSSI_{normalized, i, measured}) + (0.8 \times RSSI_{EMA, i, t-1})$$
+$$\text{RSSI}_{\text{EMA}, i, t} = (0.2 \times \text{RSSI}_{normalized, i, measured}) + (0.8 \times \text{RSSI}_{\text{EMA}, i, t-1})$$
 
 At the end of each cycle, the node's global RSSI is the **simple arithmetic mean** of all its neighbors' individual EMAs:
 
-$$RSSI_{normalized} = \frac{1}{N_{\mathrm{reliable}}} \sum_{i=1}^{N_{\mathrm{reliable}}} RSSI_{EMA, i, t}$$
+$$\text{RSSI}_{normalized} = \frac{1}{N_{\mathrm{reliable}}} \sum_{i=1}^{N_{\mathrm{reliable}}} \text{RSSI}_{\text{EMA}, i, t}$$
 
-If no reliable neighbor is heard, $S_{RSSI} = 0$. This prevents the score from oscillating at the rate of the last received packet and from being biased toward the node that emits most frequently.
+If no reliable neighbor is heard, $S_{\text{RSSI}} = 0$. This prevents the score from oscillating at the rate of the last received packet and from being biased toward the node that emits most frequently.
 #### E. Reliability History Score (S-fiab)
 
 Operational definition (normative) — the measurement is **per hop**, closing on the per-hop delivery confirmation of the Acknowledgement mechanism (ACKNOWLEDGEMENT "Per-hop delivery confirmation"):
@@ -160,11 +160,11 @@ Operational definition (normative) — the measurement is **per hop**, closing o
 - **Success** = the direct peer answered `ACK Succeeded (0x1F)` **or** `ACK Duplicated (0x0F)` for that chain (both mean "the peer holds the chain") within the emission's ECDRI lifetime (at most 3 × 1 s DELAY cycles + transmission time).
 - **Failure** = nothing, `ACK Unabled (0x03)` or `ACK Denied (0x07)` within that window.
 
-$$S_{fiab} = \mathrm{success\\_rate} \times 100$$
+$$S_{\text{fiab}} = \mathrm{\text{success\_rate}} \times 100$$
 
 computed over a sliding window of the **last 100 transmissions**.
 
-**Initialization**: $S_{fiab} = 100$ for new nodes.
+**Initialization**: $S_{\text{fiab}} = 100$ for new nodes.
 
 > **Why per-hop, not end-to-end**: `Succeeded` is 1-hop and terminal (RELAY §4) — it never travels back past the receiving hop, so "did the *final* recipient get it" is unmeasurable from an intermediate node. "Did my direct peer take the chain" is exactly what this node controls, and since the completion ACK is key-independent (RECEIVE §1), every hop — member relay, non-member relay, terminal delivery — is answered and therefore measurable. A relay's $S_{fiab}$ converges to its true per-hop delivery rate; transit no longer drains it.
 
@@ -200,7 +200,7 @@ $$Bonus_{\mathrm{seniority}} = \min\left(20, \frac{t}{15}\right) \times \frac{S_
 
 A node is a Critical Bridge if it is the only link _(at 1 Mbps OR 125 kbps)_ between two Primary nodes that cannot hear each other directly. _Example: A BLE 5.0 node can be a Critical Bridge between a BLE 4.0 (1 Mbps) and a BLE 5.0 (125 kbps) node, because it transmits in both modes._ Dynamic and proportional to the node's importance :
 
-$$Bonus_{\mathrm{bridge}} = 20 \times \mathrm{number\\_dependent\\_Primary\\_pairs}$$
+$$Bonus_{\mathrm{bridge}} = 20 \times \mathrm{number\_dependent\_Primary\_pairs}$$
 
 * **Cap**: $Bonus_{\mathrm{bridge}} \le 100$.
 * **Condition**: A node is a Critical Bridge if it is the only physical link between two Primary nodes that cannot hear each other directly *(at 1 Mbps OR 125 kbps)*.
@@ -224,9 +224,9 @@ $$S_{global} = S_{base} + Bonus_{\mathrm{seniority}} + Bonus_{\mathrm{bridge}} -
 
 $$S_{global} = \max(0, \min(100, S_{global}))$$
 
-> **Cap à 100 intentionnel.** Le plafond supérieur de $S_{global}$ est **normatif et intentionnel** : $S_{global}$ est un score borné utilisé pour la comparaison de base, la Dynamic Hysteresis et l'élection. Le $Bonus_{\mathrm{bridge}}$ ne sert **pas** à faire gagner une élection (il ne doit pas permettre à un nœud de dépasser 100 pour l'emporter sur Absolute Competition). Il sert uniquement à : (a) protéger un nœud structurellement indispensable contre une rétrogradation intempestive par la Règle 1 (Purger), et (b) justifier sa promotion en tant que Critical Bridge par la Règle 3.
+> **Intentional cap at 100.** The upper limit of $S_{global}$ is intentional: $S_{global}$ is a bounded score used for baseline comparison, **Dynamic Hysteresis** (§4), and elections. The $Bonus_{\mathrm{bridge}}$ is not intended to help a node win an election (it must not allow a node to exceed 100 and thereby prevail under Absolute Competition). Its sole purposes are to: (a) protect a structurally indispensable node from being prematurely demoted under Rule 1 (Purge), and (b) justify its promotion to "Critical Bridge" status under Rule 3.
 
-> **Interactions.** (a) Le $Malus_{\mathrm{charge}}$ (§3.E) s'applique **avant** le cap $[0, 100]$. (b) Ancrage seniority vs charge : le $Bonus_{\mathrm{seniority}}$ est plafonné à 20, donc un Primaire **junior** à 15 attachés perd net 21 points (malus 21 > 0) tandis qu'un Primaire **senior** (bonus 20) reste quasi au neutre — les nouveaux Primaires cèdent la charge avant les anciens, exactement l'effet « flotte 10–15 tolérée, mur vers 20 » recherché. (c) Rétrogradation : un Primaire surchargé (ex. N=20, malus 74) chute dans le classement et se rétrograde par la **Règle 1 (Absolute Competition) uniquement si un voisin le dépasse** de plus que la Dynamic Hysteresis — si aucun voisin n'existe, il reste en place (pas de trou topologique), simplement dégradé.
+> **Interactions.** (a) The $Malus_{\mathrm{load}}$ (§3.E) applies **before** the $[0, 100]$ cap. (b) Seniority vs. load anchoring: the $Bonus_{\mathrm{seniority}}$ is capped at 20; thus, a **junior** Primary with 15 attachments incurs a net loss of 21 points (a penalty of 21 > 0), whereas a **senior** Primary (with a bonus of 20) remains effectively neutral—new Primaries shed load before established ones, precisely achieving the intended "fleet of 10–15 tolerated, a 'wall' encountered around 20" effect. (c) Downgrading: an overloaded Primary (e.g., N=20, penalty 74) drops in the ranking and is downgraded via **Rule 1 (Absolute Competition) only if a neighbor surpasses it** by a margin exceeding the **Dynamic Hysteresis** (§4) — if no neighbor exists, it remains in its position (avoiding a topological gap), albeit in a degraded state.
 
 #### **E. Load Malus (Primary Nodes only)**
 
@@ -234,7 +234,7 @@ Steeply penalizes an overloaded serving Primary so new Secondaries elect a less-
 
 $$Malus_{\mathrm{charge}} = \mathrm{round}_{\mathrm{half\mbox{-}up}}\left(0.5 \times e^{0.25 \times N_{\mathrm{attached}}}\right), \quad N_{\mathrm{attached}} = 0 \Rightarrow Malus_{\mathrm{charge}} = 0$$
 
-**$N_{attached}$**: Number of Secondaries currently attached to the Primary — the entry count of its own **kind `Typ. N.` = `0x03`** Neighbors packet (attached-Secondaries list, PACKET §2; Relay §6.5). Only the Primary itself computes the malus (it is the only node that reliably knows its attachment set — kind `0x03` lists travel only on 1-hop mesh links, never relayed); the result is carried by its broadcast `Score` field ($S_{global}$, PACKET §1).
+**$N_{\mathrm{attached}}$**: Number of Secondaries currently attached to the Primary — the entry count of its own **kind `Typ. N.` = `0x03`** Neighbors packet (attached-Secondaries list, PACKET §2; Relay §6.5). Only the Primary itself computes the malus (it is the only node that reliably knows its attachment set — kind `0x03` lists travel only on 1-hop mesh links, never relayed); the result is carried by its broadcast `Score` field ($S_{global}$, PACKET §1).
 
 **Rounding (normative)**: half-up, $\mathrm{floor}(x + 0.5)$ — *not* banker's rounding.
 
@@ -273,16 +273,16 @@ Adaptive lock based on the average velocity of neighbors (to prevent "flapping")
 
 A Primary node demotes itself to Secondary if any one of these conditions is met :
 
-**Absolute Competition**
-Another neighboring Primary has an $S_{global}$ higher by more than the computed Dynamic Hysteresis value.
+##### Absolute Competition
+Another neighboring Primary has an $S_{global}$ higher by more than the computed **Dynamic Hysteresis** (§4) value.
 
-**Topological Redundancy**
-The overlap with a neighboring Primary is **> 75%**. **AND** this neighbor has a better score (Neighbor > Self + 5).
+##### Topological Redundancy
+The overlap with a neighboring Primary is **> 75%**. **AND** this neighbor has a better score (`Neighbor > Self + 5`).
 
-**Overlap Calculation**
+##### Overlap Calculation
 Only neighbors with an RSSI ≥ -90 dBm are considered.
 > **Dénominateur.** `total_number_neighbors` est strictement le nombre de voisins du **nœud qui s'auto-évalue** (le candidat à la rétrogradation), filtrés par RSSI ≥ -90 dBm. Ce n'est ni l'union des deux voisinages (indice de Jaccard) ni le voisinage du pair comparé.
-$\mathrm{overlap\\_ratio} = \frac{\mathrm{number\\_common\\_neighbors}}{\mathrm{total\\_number\\_neighbors}}$
+$\mathrm{overlap\_ratio} = \frac{\mathrm{number\_common\_neighbors}}{\mathrm{total\_number\_neighbors}}$
 
 #### **Rule 2: Survival (Secondary Nodes only)**
 
@@ -299,23 +299,24 @@ If a Secondary detects zero Primary nodes *(at 1 Mbps OR 125 kbps)*:
 
 A Secondary promotes itself to Primary if:
 
-- It has "Critical Bridge" status ($Bonus_{\mathrm{bridge}} > 0$). A Secondary determines this status from **two information sources it can actually obtain** — note the bearer constraint: `Neighbor (0x02)` is **GATT-only, 1-hop** (PACKET §0.3), so a Secondary **cannot** overhear a third party's `Type 02`; it receives exactly **one** Primary's `Type 02` — its serving Primary's, in-session (Phase B Control, RELAY §6.3c/§6.4):  
-    (a) via **Advertising scan** (universal, passive), it hears Primary B's `Type 01` beacon (fresh ≤ 20 s)  
-    (b) via its **GATT session**, it holds serving Primary A's Primary-kind list (`Typ. N.` = `0x01`)  
-    (c) if **B is heard but absent from A's list**, then A cannot hear B: the Secondary is the only link for the pair (A, B) and qualifies as a Critical Bridge ($Bonus_{\mathrm{bridge}} += 20$ per dependent pair, cap 100).  
-    _**Documented limits**: only pairs (A = serving Primary, B heard) are detectable — the Secondary never holds B's list; A's list is refreshed per rendezvous session (sessions are Pending-driven, so detection is opportunistic and a stale list may yield false positives); an asymmetric link (B hears A, A does not hear B) is undetectable from the Secondary's vantage and is a bounded false positive — cleaned up by Rule 1 (Topological Redundancy) if it causes a spurious promotion._
-- **OR** its $S_{global}$ exceeds the score of the best Primary in its vicinity by more than the computed Dynamic Hysteresis value.
-- **OR** there are no Primary nodes with an $S_{RSSI} \ge 50$ in its vicinity (to guarantee good link quality).
+- It has "Critical Bridge" status ($Bonus_{\mathrm{bridge}} > 0$). A Secondary determines this status from two information sources it can actually obtain — note the bearer constraint: `Neighbor (0x02)` is GATT-only, 1-hop (PACKET §0.3), so a Secondary cannot overhear a third party's `Type 02`; it receives exactly one Primary's `Type 02` — its serving Primary's, in-session (Phase B Control, RELAY §6.3c/§6.4) :  
+    **(a)** via Advertising scan (universal, passive), it hears `Primary B`'s `Type 01` beacon (fresh ≤ 20 s)  
+    **(b)** via its GATT session, it holds serving `Primary A`'s Primary-kind list (`Typ. N.` = `0x01`)  
+    **(c)** if `Primary B` is heard but absent from `Primary A`'s list, then `Primary A` cannot hear `Primary B`: the Secondary is the only link for the pair (`A`, `B`) and qualifies as a Critical Bridge ($Bonus_{\mathrm{bridge}} += 20$ per dependent pair, cap 100).  
+    _**Documented limits**: only pairs (`A` = serving Primary, `B` heard) are detectable — the Secondary never holds `B`'s list; `A`'s list is refreshed per rendezvous session (sessions are Pending-driven, so detection is opportunistic and a stale list may yield false positives); an asymmetric link (`B` hears `A`, `A` does not hear `B`) is undetectable from the Secondary's vantage and is a bounded false positive — cleaned up by Rule 1 (Topological Redundancy) if it causes a spurious promotion._
+- **OR** its $S_{\text{global}}$ exceeds the score of the best Primary in its vicinity by more than the computed **Dynamic Hysteresis** (§4) value.
+- **OR** there are no Primary nodes with an $S_{\text{RSSI}} \ge 50$ in its vicinity.
+    _This value corresponds to a raw signal of -80 dBm. It marks the threshold between an "acceptable" signal and a "weak" one. Below this value, the radio chip begins to experience significant physical interference, leading to dropped packets and the need for hardware-level retransmissions, which degrade network performance. In BLE Long Range mode (125 kbps)—factoring in the (+10) bonus—a score of 50 corresponds to a raw signal of -90 dBm. Since Long Range is designed to maintain a connection down to -100/-105 dBm, a signal of -90 dBm is entirely solid and reliable._
 
-**CSMA/CA Mechanism**
-If the promotion intent is validated, the node initiates a timer with $\mathrm{Delay} = \mathrm{random}(1000, 3000) + 10000 \times \left(1 - \frac{S_{global}}{100}\right)$:
+##### CSMA/CA Mechanism
+If the promotion intent is validated, the node initiates a timer with $\mathrm{Delay} = \mathrm{random}(1000, 3000) + 10000 \times \left(1 - \frac{S_{\text{global}}}{100}\right)$ :
 
-- A node with $S_{global} = 100$ will wait between 1s and 3s.
-- A node with $S_{global} = 0$ will wait between 11s and 13s.
+- A node with $S_{\text{global}} = 100$ will wait between 1s and 3s.
+- A node with $S_{\text{global}} = 0$ will wait between 11s and 13s.
 - Delays are expressed in **milliseconds**. The millisecond granularity (2000 possible jitter values instead of 3) prevents multiple similarly-scored nodes from promoting simultaneously.
 
-**Cancellation**
-The intent is canceled only if another node with a higher $S_{global}$ promotes itself before the timer ends. Nodes with a high $S_{global}$ promote themselves faster.
+##### Cancellation
+The intent is canceled only if another node with a higher $S_{\text{global}}$ promotes itself before the timer ends. Nodes with a high $S_{\text{global}}$ promote themselves faster.
 
 ---
 
@@ -325,28 +326,30 @@ The intent is canceled only if another node with a higher $S_{global}$ promotes 
 
 #### **A. Packet Transmission**
 
-Bluetooth 5.0+ nodes transmit at 1 Mbps AND 125 kbps to :
+##### Bluetooth 5.0+ nodes transmit at 1 Mbps AND 125 kbps to :
 
 - **Ensure compatibility** with BLE 4.0 devices.
 - **Maximize coverage** using 125 kbps (BLE 5.0).
 
-Transmission Frequency (normative, SECURITY §3.1 uniformity):
+##### Transmission Frequency (normative, SECURITY §3.1 uniformity):
 
 - **Control packets** (election, core protocol): nominally every 10 seconds, with a **per-emission jitter of ±2 s (window 8–12 s)** — a fixed 10 s period is a beaconing fingerprint and synchronizes every device's rotation/duty events on the grid (use CSPRNG per emission, not a counter).
 - **Application packets**: According to application needs, still emitted inside the jittered slot grid (never burst-aligned on a global tick).
 - **Advertising interval**: jittered per emission as above (`Informations 01`), never a metronome.
 
-**Constant TX power (normative, SECURITY §3.1)**: a device MUST emit at a **fixed power level** configured for the deployment — no distance/power adaptation, no low-power "close range" mode that would let an observer infer proximity or track a device by its power steps (each power change is a re-linking vector). (Battery-driven duty cycling changes *whether* it emits — see presence obfuscation in SECURITY.md §3 — but never the power level while emitting.)
+##### Constant TX power (normative, SECURITY §3.1)
+
+A device MUST emit at a fixed power level configured for the deployment. No distance/power adaptation, no low-power "close range" mode that would let an observer infer proximity or track a device by its power steps, each power change is a re-linking vector. _(Battery-driven duty cycling changes *whether* it emits — see presence obfuscation in SECURITY.md §3 — but never the power level while emitting.)_
 
 #### **B. Exclusive attachment + Primary-initiated rendezvous (Secondary Pending flush)**
 
-A Secondary attaches to exactly ONE serving Primary elected by (Score, RSSI_EMA, Sender ID) + hysteresis (Relay 6.1b) and accepts rendezvous only from it; other Primaries cancel (mutex, Relay 6.5). When the serving Primary detects `Pend.=1` + `Primary?` naming it (or unattached + winner) in the 16-byte beacon (4-byte Sender), it schedules one jittered GATT connection (0.5-2.0 s, 1 rendezvous at a time, task queue cap 8) as Central; the Secondary stays connectable as Peripheral. Upload (Secondary -> Primary, own 03) runs first, then download (Primary -> Secondary, relayed 03 + own Control) in the same session; close on empty or 5 s inactivity. Retries: max 3 with 2/4/8 s backoff. Handover is Secondary-initiated only. See Relay 6 for full normative flow.
+A Secondary attaches to exactly ONE serving Primary elected by (`Score`, `RSSI_EMA`, `Sender ID`) + hysteresis (Relay §6.1b) and accepts rendezvous only from it; other Primaries cancel (mutex, Relay §6.5). When the serving Primary detects `Pend.=1` + `Primary?` naming it (or unattached + winner) in the 16-byte beacon (4-byte Sender), it schedules one jittered GATT connection (0.5-2.0 s, 1 rendezvous at a time, task queue cap 8) as Central; the Secondary stays connectable as Peripheral. Upload (Secondary -> Primary, own 03) runs first, then download (Primary -> Secondary, relayed 03 + own Control) in the same session; close on empty or 5 s inactivity. Retries: max 3 with 2/4/8 s backoff. Handover is Secondary-initiated only. See Relay §6 for full normative flow.
 
 #### **C. Neighbor Detection**
   
 Bluetooth LE 4.0+ nodes detect only 1 Mbps neighbors.  
   
-Bluetooth LE 5.0+ nodes scan at 1 Mbps AND 125 kbps to detect:
+Bluetooth LE 5.0+ nodes scan at 1 Mbps AND 125 kbps to detect :
 
 - BLE 4.0 neighbors (1 Mbps).
 - BLE 5.0 neighbors (1 Mbps + 125 kbps).

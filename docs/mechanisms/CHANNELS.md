@@ -4,9 +4,7 @@ Each channel is identified by a **4-byte (32-bit) value**, and users can create 
 
 ### 1. Channel Structure (32-bit, retable)
 
-> Only the 4-byte values below are valid.
-
-#### 1.1. Channel Value Format
+#### 1.1. Channel Value Valid Format
 
 - **Size**: 4 bytes (32 bits).
 - **Representation**: Unsigned integer (0x00000000 to 0xFFFFFFFF).
@@ -22,8 +20,6 @@ Each channel is identified by a **4-byte (32-bit) value**, and users can create 
 | **Team**             | `0x00010000` – `0x000FFFFF`      | Q1–Q3 = `0x0`, Quartet 4 (bits 19–16) = `0x1`–`0xF` | 983 040       | Channels used for teams or workgroups.                          |
 | **Testing**          | `0x00001000` – `0x0000FFFF`      | Q1–Q4 = `0x0`, Quartet 5 (bits 15–12) = `0x1`–`0xF` | 61 440        | Channels used for testing, debugging, or technical uses.        |
 | **Reserved**         | `0x00000000` – `0x00000FFF`      | Q1–Q7 = `0x0`; only quartet 8 (bits 11–0) may be non-zero | 4 096         | Channels reserved (see §2).                                     |
-
-> Counts: Public `15 × 2^28` = 4 026 531 840; Private `15 × 2^24` = 251 658 240; Emergency `15 × 2^20` = 15 728 640; Team `15 × 2^16` = 983 040; Testing `15 × 2^12` = 61 440; Reserved `2^12` = 4 096 (incl. `0x00000000`). Total address space = 4 294 967 296 = 2^32; attributable channels = 4 294 967 295 after excluding `0x00000000`.
 
 ### 2. Channel Zero (0x00000000)
 

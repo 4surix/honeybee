@@ -4,23 +4,35 @@
 
 > [Data deduplication - Wikipedia](https://en.wikipedia.org/wiki/Data_deduplication)
 
-**Key:** canonical `Packet ID` defined in Packet §0.3. **TTL is never part of the key.** Comparison is on `Packet ID` equality, never on raw bytes (raw bytes differ at each hop because TTL is decremented).  
+#### Key
 
-**Capacity:** the last N `Type 03 Message` packets are kept in RAM for dedup + `MISSING` recovery (same store serves both). N is a **`Master::params`** knob (default 1000 on phone-class targets; **256 or fewer on MCU-class**). Cost ≈ N x (max frame 230 B for every `Index` (chain `Nonce` on all fragments), + ~48 B entry metadata (upper bound — short `packet_id` ref ~10 B + `chain_key` (Sender4+Channel4+Chain1+Timestamp4+Random4 ≈ 17 B) + `epoch` 8 B + `ttl_decremented` 1 B + `rx_timestamp` up to 8 B + bearer/PHY 1 B + flags 2 B + `pow_fail_count` 1 B, incl. 32-bit struct padding on nRF52-class targets): 1000 ≈ 278 KB (phone-class only — too large for a 256 KB nRF52840 that also runs the BLE stack), 256 ≈ 71 KB, 64 ≈ 18 KB. A fingerprint-only dedup mode (store a hash of the `Packet ID` instead of the frame) is a documented future option for tiny targets — but it forfeits `MISSING` recovery, which needs the stored frames, so it is **not** the default. `Type 01 (0x01)`/`Type 02 (0x02)`/`Type 04 (0x04)` are 1-hop (never relayed, see §4): keep only a small refresh cache (latest `Type 01 (0x01)` per Sender for election/`Pend.`+`Primary?`, latest `Type 02 (0x02)` per Sender, short-lived `Type 04 (0x04)`) for local processing, never for relay.
+Canonical `Packet ID` defined in Packet §0.3. **TTL is never part of the key.** Comparison is on `Packet ID` equality, never on raw bytes (raw bytes differ at each hop because TTL is decremented).  
 
-**Entry schema (normative — two key spaces, one store):** each entry is `{packet_id, chain_key, epoch, ttl_decremented, rx_timestamp, ingress bearer/PHY, pow_validated, admitted, sender_charged, pow_fail_count}`. `sender_charged` records that the per-sender bucket (§1c) was already debited for this `Packet ID` — re-gates never re-debit (see §1c). `pow_fail_count` counts consecutive PoW re-verification failures on this entry (case 2 below) — reset to 0 on any validation. The store keeps **two indexes**: (1) `packet_id` → entry, the per-fragment dedup key (Packet §0.4; includes `List`/`Index` and `Chunk`, excludes TTL/FCS/`Nonce`); (2) `chain_key = (Sender, Channel, Chain, Timestamp, Random)` → the **anchor** entry (the `Index == 0` fragment). `pow_validated` records that this fragment's PoW passed (§1b); `admitted` records that it cleared the whole §1d gate and was enqueued for relay.  
+#### Capacity
 
-**Policy:**  
+The last N `Type 03 Message` packets are kept in RAM for dedup + `MISSING` recovery (same store serves both). N is a `Master::params` knob (default 1000 on phone-class targets; 256 or fewer on MCU-class).  
+  
+Cost ≈ N x (max frame 230 B for every `Index` (chain `Nonce` on all fragments), + ~48 B entry metadata _(upper bound — short `packet_id` ref ~10 B + `chain_key` (Sender4+Channel4+Chain1+Timestamp4+Random4 ≈ 17 B) + `epoch` 8 B + `ttl_decremented` 1 B + `rx_timestamp` up to 8 B + bearer/PHY 1 B + flags 2 B + `pow_fail_count` 1 B, incl. 32-bit struct padding on nRF52-class targets)_: 1000 ≈ 278 KB _(phone-class only — too large for a 256 KB nRF52840 that also runs the BLE stack)_, 256 ≈ 71 KB, 64 ≈ 18 KB.  
+  
+A fingerprint-only dedup mode (store a hash of the `Packet ID` instead of the frame) is a documented future option for tiny targets — but it forfeits `MISSING` recovery, which needs the stored frames, so it is not the default. `Type 01 (0x01)`/`Type 02 (0x02)`/`Type 04 (0x04)` are 1-hop (never relayed, see §4): keep only a small refresh cache (latest `Type 01 (0x01)` per Sender for election/`Pend.`+`Primary?`, latest `Type 02 (0x02)` per Sender, short-lived `Type 04 (0x04)`) for local processing, never for relay.  
+
+#### Entry schema (normative — two key spaces, one store)
+
+Each entry is `{packet_id, chain_key, epoch, ttl_decremented, rx_timestamp, ingress bearer/PHY, pow_validated, admitted, sender_charged, pow_fail_count}`. `sender_charged` records that the per-sender bucket (§1c) was already debited for this `Packet ID` — re-gates never re-debit (see §1c). `pow_fail_count` counts consecutive PoW re-verification failures on this entry (case 2 below) — reset to 0 on any validation.  
+  
+The store keeps two indexes: (1) `packet_id` → entry, the per-fragment dedup key (Packet §0.4; includes `List`/`Index` and `Chunk`, excludes TTL/FCS/`Nonce`); (2) `chain_key = (Sender, Channel, Chain, Timestamp, Random)` → the **anchor** entry (the `Index == 0` fragment). `pow_validated` records that this fragment's PoW passed (§1b); `admitted` records that it cleared the whole §1d gate and was enqueued for relay.  
+
+#### Policy
 
 - Lookup happens **after** size/ID/bearer/FCS/TTL validation, **before** decrement (see Receive §0). Invalid frames (bad FCS, `TTL == 0`, bad size, wrong bearer) are dropped and **never inserted**.
 - On miss: insert the entry with `pow_validated = false` and `admitted = false` **before** processing (closes re-entrancy during jitter window); the §1d steps then flip the flags as they pass.
 - On hit, three cases:  
-    - `pow_validated = true` **and** `admitted = true` → **drop as duplicate**. Do not reprocess, do not re-queue for relay. Optionally emit one rate-limited `ACK Duplicated (0x0F)` for `Type 03 (0x03)` (never relayed). Cancel any pending relay timer for that `Packet ID` (heard-it-again suppression).
-    - `pow_validated = false` → **re-verify the PoW** on the just-received frame (its `Nonce` may be a fresh escalation) instead of dropping; if it passes, set `pow_validated = true`, reset `pow_fail_count` to 0, and continue the gate. If it fails, increment `pow_fail_count`; **an entry whose re-verification failed N times (recommended N = 3, `Master::params` knob) is evicted** — the next legit frame re-inserts it fresh as a **complete miss** (sender-bucket step 4 included — there is no fast re-insert path) with one re-insertion + one re-verify, benign for the honest sender whose PoW is always valid. This bounds the zero-grind CPU valve where an attacker floods PoW-invalid copies of one entry: each entry costs the relay at most N hashes before eviction. Stated limit: eviction makes the valve *per-entry-costly*, not closed — the attacker can reopen a fresh entry (one free re-verify), the ratio stays ~1:1 per frame, bounded by GATT bandwidth. Anti-poisoning: an entry inserted from a PoW-invalid frame cannot silently shadow the real one.
+    - `pow_validated = true` and `admitted = true` → drop as duplicate. Do not reprocess, do not re-queue for relay. Optionally emit one rate-limited `ACK Duplicated (0x0F)` for `Type 03 (0x03)` (never relayed). Cancel any pending relay timer for that `Packet ID` (heard-it-again suppression).
+    - `pow_validated = false` → **re-verify the PoW** on the just-received frame (its `Nonce` may be a fresh escalation) instead of dropping; if it passes, set `pow_validated = true`, reset `pow_fail_count` to 0, and continue the gate. If it fails, increment `pow_fail_count`; an entry whose re-verification failed N times (recommended N = 3, `Master::params` knob) is evicted — the next legit frame re-inserts it fresh as a **complete miss** (sender-bucket step 4 included — there is no fast re-insert path) with one re-insertion + one re-verify, benign for the honest sender whose PoW is always valid. This bounds the zero-grind CPU valve where an attacker floods PoW-invalid copies of one entry: each entry costs the relay at most N hashes before eviction. Stated limit: eviction makes the valve *per-entry-costly*, not closed — the attacker can reopen a fresh entry (one free re-verify), the ratio stays ~1:1 per frame, bounded by GATT bandwidth. Anti-poisoning: an entry inserted from a PoW-invalid frame cannot silently shadow the real one.
     - `pow_validated = true` **and** `admitted = false` → **re-gate** (§1d steps 4–6: sender-bucket, TTL, channel-bucket/rescue) against the re-received frame's PoW. This makes an escalation meaningful: a fragment dropped at the channel bucket gets a fresh chance when the emitter returns with a harder chain `Nonce` (on any retransmission cycle — MISSING-driven or ECDRI-driven, see §1b). If it passes, set `admitted = true` and enqueue; else it stays eligible for a future re-gate. Step 4 does **not** re-debit the sender bucket when `sender_charged` is already set (one debit per `Packet ID`, see §1c). TTL is **not** decremented again: the node ignores the TTL carried by the newly received frame (already validated `1..255` at reception per Receive §0 — a stale-but-valid value, never an invalid one), uses the entry’s `ttl_decremented` value (`original ingress TTL − 1`) for the outgoing frame, and recomputes the FCS accordingly — otherwise a packet re-gated *n* times would lose *n* TTL for a single hop; the retransmission is bit-identical except for the fresh `Nonce`, and the stored TTL keeps relaying idempotent. (If the stored decremented TTL is 0 the packet is local-only and never re-gated toward relay.)
-- Eviction: LRU. A `Packet ID` whose Sender ID rotated (see Identification, 15-min epoch) must not collide: Sender rotation changes the key, old entries age out naturally.
-
-This replaces the former contradictory rule (*"still returns it even if already received"*): a device **never relays a duplicate**.
+- Eviction: LRU. A `Packet ID` whose Sender ID rotated (see Identification, 15-min epoch) must not collide: Sender rotation changes the key, old entries age out naturally. 
+  
+> This replaces the former contradictory rule (*"still returns it even if already received"*): a device never relays a duplicate.
 
 #### 1.1 Chain PoW (normative, keyless, one proof per chain)
 
@@ -40,7 +52,7 @@ Relayed `03` frames must carry a sender-side Proof-of-Work on their chain. **Rel
 
 > [Sybil attack - Wikipedia](https://en.wikipedia.org/wiki/Sybil_attack)
 
-Distinct from the sender-side emission Token Bucket (Send §2.1): this is the **relay-side admission control** on `Type 03 (0x03)` reception (after dedup, alongside PoW).
+Distinct from the sender-side emission Token Bucket (Send §2.1): this is the relay-side admission control on `Type 03 (0x03)` reception (after dedup, alongside PoW).
 
 - **Token bucket per `Sender` address**: burst `16`, refill `4/s` (continuous). Each admitted `Type 03 (0x03)` consumes 1 token — **exactly once per `Packet ID`**: the first passage of step 4 sets the entry’s `sender_charged` flag (§1), and later re-gates of the same packet (§1 case 3) never re-debit. Empty bucket → silent drop (no ACK, no cache insert as relayable).
 - **Bounded state**: LRU of `512` buckets, keyed by `Sender (4)`; bucket entries expire after `epoch + 60 s` of inactivity (same horizon as the key-rotation grace). Memory is fixed regardless of address churn.
@@ -59,63 +71,12 @@ emission bucket (Send §2.1): this is the **relay-side airtime budget** at the
 emission queue. RX is free; only relay TX of `03` pays. Budgets are strictly
 local: no inter-node sync (contention is local, like airtime).
 
-- **Bucket per `Channel ID`**: `burst = 20` (int tokens), refill `40/min`
-  (`+2` tokens every `3 s`). Each admitted `03` fragment consumes
-  `cost_frag = 1 + len(chunk) // 64` (int floor): `9 B -> 1`, `64 B -> 2`,
-  `128 B -> 3`, `192..200 B -> 4`. Only `03` is debited (`01/02/04` are
-  1-hop, never relayed, never debited).
-  **Padding interaction (normative, SECURITY §3.1)**: with the constant
-  classes the cost splits as `32 B short -> 1` and `200 B long -> 4` —
-  the floor of 1 means short fragments cost *more per byte* (32 B/token
-  vs 50 B/token for 200 B), which is honest: every BLE packet carries its
-  own preamble/address/CRC + 2×IFS, so small packets genuinely cost more
-  airtime per payload byte. Effect on the budget: short-class traffic
-  admits `40 frags/min` (1280 B airtime/min), long-class `10 frags/min`
-  (2000 B/min) — regime cap for useful compressed data per channel per
-  15 min ≈ **6 KB (10 B chat) to ≈ 25 KB (1000 B messages)**, ≈ 12–17 KB
-  for chat sizes (vs unpadded: a 189 B message now pays 7 tokens instead
-  of 4 — the +75% privacy tax of uniform sizes, pinned by
-  `test_channel_bucket.TestEconomicBounds`).
-- **Lazy refill, no timer (normative)**: `avail(T)` is a pure function of
-  `(tokens, lastUpdate)` with int seconds (monotonic):
-  `add = (elapsed * 40) // 60`, `avail = min(burst, tokens + add)`,
-  `lastUpdate` advances only by the time effectively converted
-  (`(add * 60) // 40`), so the sub-token remainder is kept (no drift).
-  No float anywhere (MCU-friendly, deterministic test vectors).
-- **Bounded state**: LRU of `256` buckets (~3 Ko); entries expire after
-  `epoch + 60 s` of inactivity (same horizon as §1c: no budget state
-  survives a rotation). An evicted-then-seen channel restarts at `burst`
-  (known re-arm window, covered by base PoW `d=12` — see SECURITY §1.3).
-- **Channel-budget backpressure + silent rescue (normative)**: when
-  `avail < cost` the relay does **not** mint tokens and there is **no new
-  packet type, no NACK, no round-trip**. Instead the gate (step 6 below)
-  applies a **silent rescue**: the fragment is admitted **without debit**
-  (tokens forced to 0) **iff** its PoW meets `d_eff = 12 + min(8, burst −
-  avail)` (so up to `d_eff = 20` on a fully empty bucket). Otherwise it is
-  dropped **silently**. Missing fragments are reclaimed through the
-  existing **MISSING** mechanism (`ACKNOWLEDGEMENT.md`): the receiver,
-  knowing `Last` from every fragment, requests the absent indexes. But a
-  chain dropped at an intermediate relay never reaches any downstream
-  receiver, so no MISSING can come back — the emitter’s own ECDRI
-  (no ACK `Succeeded` observed) is therefore an equally valid escalation
-  signal. A **MISSING-driven** retransmission escalates from the first cycle
-  (`d = min(20, d_previous + 4)`); an **ECDRI-driven** retransmission
-  (pure silence) re-emits with a fresh Nonce at unchanged `d` on the first cycle and escalates
-  only from the second silent cycle (§1b — benign radio loss pays no grind).
-  Either way the emitter raises its PoW by re-grinding the chain `Nonce`,
-  converging on `d_eff` in at most 3–4 silent cycles (12 → 12 → 16 → 20). The emitter may *provision* a
-  higher `d` from the start (e.g. `d=16`) if it has recently observed MISSING
-  on this channel — a purely local heuristic, never negotiated with the
-  relay. Because the rescue demand is never communicated, this gives the
-  honest sender the same upward pressure as a relay-driven rescue **without**
-  an unauthenticated griefing channel (a "PoW too low" ACK could be forged
-  by anyone to force victims into 1 M-hash grinds; here only a retransmission
-  cycle (MISSING from the first cycle, ECDRI-silence from the second —
-  which the emitter already answers) drives the escalation, capped at `d=20`).
-- **Ordered gate (normative, cheapest first — never pay a PoW check for a
-  packet dedup would drop)**. The channel-bucket deficit is redeemed by the
-  silent rescue in step 6 (PoW ≥ `d_eff`) plus retransmission cycles
-  with chain-`Nonce` escalation (MISSING from cycle 1, ECDRI-silence from cycle 2, §1 above):
+- **Bucket per `Channel ID`**: `burst = 20` (int tokens), refill `40/min` (`+2` tokens every `3 s`). Each admitted `03` fragment consumes `cost_frag = 1 + len(chunk) // 64` (int floor): `9 B -> 1`, `64 B -> 2`, `128 B -> 3`, `192..200 B -> 4`. Only `03` is debited (`01/02/04` are 1-hop, never relayed, never debited).
+- **Padding interaction (normative, SECURITY §3.1)**: with the constant classes the cost splits as `32 B short -> 1` and `200 B long -> 4` — the floor of 1 means short fragments cost *more per byte* (32 B/token vs 50 B/token for 200 B), which is honest: every BLE packet carries its own preamble/address/CRC + 2×IFS, so small packets genuinely cost more airtime per payload byte. Effect on the budget: short-class traffic admits `40 frags/min` (1280 B airtime/min), long-class `10 frags/min` (2000 B/min) — regime cap for useful compressed data per channel per 15 min ≈ **6 KB (10 B chat) to ≈ 25 KB (1000 B messages)**, ≈ 12–17 KB for chat sizes (vs unpadded: a 189 B message now pays 7 tokens instead of 4 — the +75% privacy tax of uniform sizes, pinned by `test_channel_bucket.TestEconomicBounds`).
+- **Lazy refill, no timer (normative)**: `avail(T)` is a pure function of `(tokens, lastUpdate)` with int seconds (monotonic): `add = (elapsed * 40) // 60`, `avail = min(burst, tokens + add)`, `lastUpdate` advances only by the time effectively converted (`(add * 60) // 40`), so the sub-token remainder is kept (no drift). No float anywhere (MCU-friendly, deterministic test vectors).
+- **Bounded state**: LRU of `256` buckets (~3 Ko); entries expire after `epoch + 60 s` of inactivity (same horizon as §1c: no budget state survives a rotation). An evicted-then-seen channel restarts at `burst` (known re-arm window, covered by base PoW `d=12` — see SECURITY §1.3).
+- **Channel-budget backpressure + silent rescue (normative)**: when `avail < cost` the relay does **not** mint tokens and there is **no new packet type, no NACK, no round-trip**. Instead the gate (step 6 below) applies a **silent rescue**: the fragment is admitted without debit (tokens forced to 0) iff its PoW meets `d_eff = 12 + min(8, burst − avail)` (so up to `d_eff = 20` on a fully empty bucket). Otherwise it is dropped silently. Missing fragments are reclaimed through the existing MISSING mechanism (`ACKNOWLEDGEMENT.md`): the receiver, knowing `Last` from every fragment, requests the absent indexes. But a chain dropped at an intermediate relay never reaches any downstream receiver, so no MISSING can come back — the emitter’s own ECDRI (no ACK `Succeeded` observed) is therefore an equally valid escalation signal. A **MISSING-driven** retransmission escalates from the first cycle (`d = min(20, d_previous + 4)`); an **ECDRI-driven** retransmission (pure silence) re-emits with a fresh Nonce at unchanged `d` on the first cycle and escalates only from the second silent cycle (§1b — benign radio loss pays no grind). Either way the emitter raises its PoW by re-grinding the chain `Nonce`, converging on `d_eff` in at most 3–4 silent cycles (12 → 12 → 16 → 20). The emitter may *provision* a higher `d` from the start (e.g. `d=16`) if it has recently observed MISSING on this channel — a purely local heuristic, never negotiated with the relay. Because the rescue demand is never communicated, this gives the honest sender the same upward pressure as a relay-driven rescue **without** an unauthenticated griefing channel (a "PoW too low" ACK could be forged by anyone to force victims into 1 M-hash grinds; here only a retransmission cycle (MISSING from the first cycle, ECDRI-silence from the second — which the emitter already answers) drives the escalation, capped at `d=20`).
+- **Ordered gate (normative, cheapest first — never pay a PoW check for a packet dedup would drop)**. The channel-bucket deficit is redeemed by the silent rescue in step 6 (PoW ≥ `d_eff`) plus retransmission cycles with chain-`Nonce` escalation (MISSING from cycle 1, ECDRI-silence from cycle 2, §1 above):
   ```
   1. FCS valid? else drop
   2 & 3. Dedup & base PoW (d=12) validation (see §1 policy — the gate
@@ -124,8 +85,9 @@ local: no inter-node sync (contention is local, like airtime).
        sender_charged=false, pow_fail_count=0 — closes re-entrancy),
        then validate base PoW d=12 (drop if fail); on pass set
        pow_validated=true and proceed to 4.
-     - Hit (admitted=true): drop as duplicate (optional in-session `ACK Duplicated (0x0F)`, rate-limited, never relayed; cancel any pending
-       relay timer for that Packet ID — heard-it-again suppression).
+     - Hit (admitted=true): drop as duplicate (optional in-session 
+       `ACK Duplicated (0x0F)`, rate-limited, never relayed; cancel any 
+       pending relay timer for that Packet ID — heard-it-again suppression).
      - Hit (pow_validated=false): re-verify the just-received frame’s
        fresh Nonce (drop + pow_fail_count++ — evict after N=3 — if
        fail); on pass set pow_validated=true, reset pow_fail_count=0,
@@ -139,22 +101,14 @@ local: no inter-node sync (contention is local, like airtime).
         no  -> drop silently
   -> enqueue (priority §1d queue + §3 jitter)
   ```
-- **Service priority (queue order, never a bypass)**: `Emergency (0) >
-  Public = Private (1) > Team (2) > Testing = Reserved (3)` (see
-  CHANNELS.md priority table), FIFO within a class. `MISSING`-triggered
-  retransmits and ECDRI retransmits go first (mesh reliability core),
-  with two anti-abuse guards: (a) a MISSING is only served for fragments
-  already seen/stored (verifiable via the Receive store), (b) a served
-  MISSING still pays the normal `cost_frag` — scheduling priority, not a
-  budget exemption. Modeled by `tests/crypto_model.py: ChannelRelayLimiter`
-  and pinned by `tests/test_channel_bucket.py`.
+- **Service priority (queue order, never a bypass)**: `Emergency (0) > Public = Private (1) > Team (2) > Testing = Reserved (3)` (see CHANNELS.md priority table), FIFO within a class. `MISSING`-triggered retransmits and ECDRI retransmits go first (mesh reliability core), with two anti-abuse guards: (a) a MISSING is only served for fragments already seen/stored (verifiable via the Receive store), (b) a served MISSING still pays the normal `cost_frag` — scheduling priority, not a budget exemption.
 
 ### 2. TTL rules (normative)
 
 > [Time To Live - Wikipedia](https://en.wikipedia.org/wiki/Time_to_live)
 
-Only a Primary relays packets it receives, and **only if** TTL validation passed at reception (`1 <= TTL <= 255`, `TTL_MAX = 255`). A Secondary never relays: it uploads its own outbox to its single serving Primary (§6) and receives downloads from it; it never forwards third-party traffic.
-
+Only a Primary relays packets it receives, and **only if** TTL validation passed at reception (`1 <= TTL <= 255`, `TTL_MAX = 255`). A Secondary never relays: it uploads its own outbox to its single serving Primary (§6) and receives downloads from it; it never forwards third-party traffic.  
+  
 The maximum number of relays is 255. If you use this value when sending a packet, it means it will pass through 255 devices (potentially multiple times the same device, though strict dedup prevents re-relay by the same device). At Long Range 125 kb/s, we can reach an average distance of up to 200 meters. 255 x 200 = 51,000 meters (51 km). But sometimes, we don't need to go that far; just a few hundred meters is enough, or 1-2 km. In this case, it's advisable to use a low TTL value (10-15) to avoid unnecessarily overloading the network.
 
 - After validation, decrement TTL by 1. Relay **only if** decremented TTL `> 0`. If it becomes `0`: process locally (reassembly/decrypt) but do not enqueue for relay.
@@ -175,7 +129,7 @@ Immediate rebroadcast causes broadcast storms and BLE collisions (worse with dua
 - Jitter applies to Message relay only, not to local delivery/reassembly. Initial `Type 03 (0x03)` emissions follow Send Token Bucket; retransmissions (ECDRI/`MISSING`) also draw from the same 0–500 ms window.
 - Uniform random must be per-packet and unpredictable (use CSPRNG or `Random` field mixed with local entropy — `relay_jitter_ms()` with `seed=None` uses `SystemRandom`), so neighboring nodes desynchronize **and** an observer cannot infer the next emission from the last reception.
 
-### 4. Bearer and relay scope (normative, see [frame overview](../images/img-frame.png))
+### 4. Bearer and relay scope (normative)
 
 - **Only `Type 03 Message` packets are relayed, and only in GATT.** Every relay dequeues a validated, TTL-decremented (`> 0`) `03` and forwards it over GATT connections (never in Advertising payloads).
 - **Advertising**: carries only fresh `Type 01 Informations` beacons (17 bytes protocol + Adv overhead, 4-byte Sender + `Primary?`) emitted by their own sender every ~10 s. A node never relays another node 01: on reception it processes it locally (election, `Pend.`+`Primary?` detection per Receive 0.1) and drops it after processing.
@@ -215,7 +169,7 @@ Primaries form the GATT relay backbone: they connect to each other to exchange `
 
 Goal: a disconnected Secondary cannot deliver its GATT packets over Advertising (forbidden by bearer rules). When a Primary sees Pending=1 from a Secondary, it schedules a GATT connection so the Secondary uploads its outbox while the Primary downloads its own unsent packets to that Secondary in the same session.
 
-**Exclusivity rule: a Secondary is attached to at most ONE serving Primary at a time (single GATT link, single uploader, single downloader).** This forbids several Primaries connecting in turn to the same Secondary for the same outbox (no round-robin draining, no duplicate uploads, no divergent downloads). Multi-homing is forbidden; re-attachment to another Primary happens only via explicit handover (§6.5).
+> **Exclusivity rule: a Secondary is attached to at most ONE serving Primary at a time (single GATT link, single uploader, single downloader).** This forbids several Primaries connecting in turn to the same Secondary for the same outbox (no round-robin draining, no duplicate uploads, no divergent downloads). Multi-homing is forbidden; re-attachment to another Primary happens only via explicit handover (§6.5).
 
 #### 6.1 Detection (Primary side)
 
@@ -228,7 +182,7 @@ Goal: a disconnected Secondary cannot deliver its GATT packets over Advertising 
 
 A Secondary chooses its single serving Primary deterministically from directly-heard `001` beacons (1-hop, masked role `0x01`), so all nearby Primaries converge on the same decision without negotiation:
 
-**Rationale for Secondary-side election (information asymmetry):** the Secondary is the only node that knows the quality of **all** its candidate links — a Primary does hear the Secondary (it must, to detect `Pending`/`Primary?`, and it may apply an RSSI gate, SECURITY §1.4), but it cannot assess how that Secondary hears its competitors. The decision therefore belongs to the node holding the complete view: a Primary-side election would let a strong-receiver Primary pull a Secondary onto a link that Secondary cannot see as good.
+> **Rationale for Secondary-side election (information asymmetry):** the Secondary is the only node that knows the quality of all its candidate links — a Primary does hear the Secondary (it must, to detect `Pending`/`Primary?`, and it may apply an RSSI gate, SECURITY §1.4), but it cannot assess how that Secondary hears its competitors. The decision therefore belongs to the node holding the complete view: a Primary-side election would let a strong-receiver Primary pull a Secondary onto a link that Secondary cannot see as good.
 
 1. Candidate set: Primaries heard within the last 20 s (~2 beacon periods) with RSSI >= -90 dBm (same reliability floor as Network overlap). Entries older than 20 s are purged.
 2. Score: rank by `(S_global desc, RSSI_EMA desc (higher/less-negative wins), Sender ID asc)` using the beacon Score field and locally smoothed RSSI_EMA (alpha 0.2, same filter as Network mobility). Highest rank wins; Sender ID ascending (4-byte lexicographic) breaks ties deterministically. (Caution: sort key is `-RSSI` ascending or `RSSI` descending — ascending raw RSSI elects the *weakest* signal; proven by `tests/test_election.py`.)
@@ -237,7 +191,6 @@ A Secondary chooses its single serving Primary deterministically from directly-h
 5. Fresh Secondary (no serving Primary yet): same ranking, no hysteresis on first pick; it accepts the first rendezvous only from the current winner. While unattached it still beacons Pending=1, so several Primaries may schedule tasks — but §6.5 mutex guarantees only the winner connects.
 
 #### 6.2 Connection (Primary = initiator / GATT Central, Secondary = GATT Peripheral)
-
 
 - Only the Primary initiates the GATT connection. The Secondary never initiates for flush; it only advertises Pending and accepts. This **initiator asymmetry** avoids *double-connect* collisions — **both endpoints dialing each other simultaneously**. It is a distinct mechanism from the **multi-Primary race** (several Primaries wanting to serve the same Secondary), which is handled by the `Primary?` lock + §6.5 mutex; the two are complementary defenses, not the same problem.
 - The Secondary must keep its Peripheral role connectable while Pending=1. After accepting, it stops advertising Pending=1 only when its outbox is empty (cleared at the next 10 s beacon after flush, not mid-connection).
