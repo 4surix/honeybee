@@ -32,6 +32,7 @@ nav:
       - Confidentiality: mechanisms/CONFIDENTIALITY.md
       - Send: mechanisms/SEND.md
       - Receive: mechanisms/RECEIVE.md
+  - About: ABOUT.md
 
 theme:
   name: material

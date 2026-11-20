@@ -26,9 +26,9 @@
 
 ##### Service discovery (normative, SECURITY §3 anti-fingerprint)
 
-- **No HoneyBee-specific Service UUID.** The GATT server exposes a **generic service** (a neutral standard UUID, e.g. the Generic Access `0x1800`-class appearance) — a fixed vendor UUID in the advertisement or in `discoverServices()` is a stable beacon telling every urban scanner "a HoneyBee device is at this place at this time" (see SECURITY.md §3).
-- **Peer recognition** rides the **Manufacturer Specific Data** of the advertising payload (the field exactly designed for it), carrying the protocol's 5-bit signature (`10100`, the `header()` marker) plus the rotating protocol fields. The manufacturer/company identifier is fixed for filtering purposes but reveals only "HoneyBee exists here", never "which device" — the rotating 4-byte Sender inside the payload does the device-level identification, one-way per epoch (`IDENTIFICATION.md` §3).
-- Scan filters therefore match the (fixed, non-identifying) manufacturer ID — no HMAC matching in the filter, full scan filtering stays cheap — while the on-air identity remains the rotating address. Once connected, the generic service reveals nothing protocol-specific in the GATT discovery.
+- **No HoneyBee-specific Service UUID :** The GATT server exposes a generic service _(a neutral standard UUID, e.g. the Generic Access `0x1800`-class appearance)_ a fixed vendor UUID in the advertisement or in `discoverServices()` is a stable beacon telling every urban scanner "a HoneyBee device is at this place at this time" (see SECURITY.md §3).
+- **Peer recognition rides the Manufacturer Specific Data** of the advertising payload (the field exactly designed for it), carrying the protocol's 5-bit signature (`10100`, the `header()` marker) plus the rotating protocol fields. The manufacturer/company identifier is fixed for filtering purposes but reveals only "HoneyBee exists here", never "which device", the rotating 4-byte Sender inside the payload does the device-level identification, one-way per epoch (`IDENTIFICATION.md` §3).
+- Scan filters therefore match the (fixed, non-identifying) manufacturer ID. No HMAC matching in the filter, full scan filtering stays cheap. While the on-air identity remains the rotating address. Once connected, the generic service reveals nothing protocol-specific in the GATT discovery.
 
 #### 0.2 V. BLE
 
@@ -119,7 +119,7 @@ Each node re-emits only its own Informations every ~10 s; do not toggle `Pend.` 
 | **Sender** | 4 | Identifiant of the sender (**32-bit**). | `0x12345678` |
 | **Prim.** | 1 | Number of Primary neighbors seen (mirrors Type 1 count). | `0x01` |
 | **Secd.** | 1 | Number of Secondary neighbors seen (mirrors Type 1 count). | `0xA1` |
-| **Typ. N.** | 1 | Entry kind of the Devices list: `0x01` = **Primary** neighbors, `0x02` = **Secondary** neighbors merely heard, `0xFF` = **Attached** Secondaries _(elected serving Primary is the sender; emitted by a Primary only)_ (see Relay §6.5). | - |
+| **Typ. N.** | 1 | Entry kind of the Devices list: `0x01` = **Primary** neighbors, `0x02` = **Secondary** neighbors merely heard, `0x03` = **Attached** Secondaries _(elected serving Primary is the sender; emitted by a Primary only)_ (see Relay §6.5). | - |
 | **Devices** | 4xN | Neighbor device IDs, **4 bytes each** (was 3). | - |
 
 #### Per-kind emission discipline. 
@@ -129,17 +129,17 @@ A node emits one Neighbor (0x02) packet **per kind**:
 - one packet containing exclusively Primary IDs (`Typ. N.` = `0x01`)
 - and one packet containing exclusively Secondary IDs (`Typ. N.` = `0x02`). 
 
-A Primary additionally emits a third packet containing exclusively the IDs of its **attached Secondaries** (`Typ. N.` = `0x03`); a Secondary never emits this kind (it has no attached nodes).   
+A Primary additionally emits a third packet containing exclusively the IDs of its attached Secondaries (`Typ. N.` = `0x03`), a Secondary never emits this kind (it has no attached nodes).   
   
-The `Prim.` and `Secd.` header fields count the total entries known to the sender for each role, independently of the current packet's kind — **including for kind `0x03`** (where `Secd.` remains the total known Secondary neighbors, not the attached count).  
+The `Prim.` and `Secd.` header fields count the total entries known to the sender for each role, independently of the current packet's kind. For kind `0x03`, `Secd.` remains the total known Secondary neighbors, not the attached count.  
   
-**$N_{attached}$** (Network §3.E) = entry count of the Primary's kind-`0x03` packet, and of that kind-`0x03` packet only. This separation lets a Secondary infer its own Critical Bridge status (state-machine Rule 3, see `NETWORK.md` §4) by **combining** what it receives **in-session** from its serving Primary (Phase B Control, RELAY §6.3c) with the `Type 01` beacons it scans over the air — a Secondary never hears a third party's `Type 02` (1-hop GATT bearer, PACKET §0.3) — and lets a peer Primary distinguish Secondaries it merely *hears* (kind `0x02`) from those it *serves* (kind `0x03`) for the mutex (Relay §6.5).
+**$N_{attached}$** (Network §3.E) = entry count of the Primary's kind-`0x03` packet, and of that kind-`0x03` packet only. This separation lets a Secondary infer its own Critical Bridge status (state-machine Rule 3, see `NETWORK.md` §4) by combining what it receives in-session from its serving Primary (Phase B Control, RELAY §6.3) with the `Type 01` beacons it scans over the air. A Secondary never hears a third party's `Type 02` (1-hop GATT bearer, PACKET §0.3), and lets a peer Primary distinguish Secondaries it merely *hears* (kind `0x02`) from those it *serves* (kind `0x03`) for the mutex (Relay §6.5).
 
 ---
 
 <a name="message"></a>
 
-### **3. Message Format (30+ bytes protocol, + GATT overhead)**
+### **3. Message Format (41+ bytes protocol, + GATT overhead)**
 
 | Field         | Bytes  | Description                                      | Example            |
 | ------------- | ------ | ------------------------------------------------ | ------------------ |
@@ -147,14 +147,14 @@ The `Prim.` and `Secd.` header fields count the total entries known to the sende
 | **V. BLE**    | 1      | See §0.2.                                        | `0x01`             |
 | **Typ. P.**   | 1      | `0x03`.                                          | `0x03`             |
 | **TTL**       | 1      | Number of allowed relays (decremented per relay).| `0x05`             |
-| **List**      | 2      | Chain/Last/Index (see 3.2). `Chain` (4-bit chain counter) is unrelated to `Channel` (32-bit channel identifier, §CHANNELS) — the relay `chain_key` carries both (RELAY §1). | See below          |
+| **List**      | 2      | Chain/Last/Index (see 3.2). `Chain` (4-bit chain counter) is unrelated to `Channel` (32-bit channel identifier, §CHANNELS), the relay `chain_key` carries both (RELAY §1). | See below          |
 | **Sender**    | 4      | Identifiant of the sender (**32-bit**).          | `0x12345678`       |
 | **Channel**   | 4      | Identifiant of the channel (**32-bit**, retable).| `0x0130ABCD`       |
 | **Timestamp** | 4      | UNIX seconds at chain creation, identical in all fragments (see 3.4). | `0x67123456` |
 | **Random**    | 4      | Chain nonce / IV salt; frozen per chain, part of Packet ID + chain key (see 3.5). Not the PoW grind target. | `0x12345678` |
-| **Nonce**     | 4      | Chain PoW proof (every `Index`, same copy): grind target so `SHA256(List0‖Sender‖Channel‖Timestamp‖Random‖Nonce)` meets `d` (see 3.5b). Excluded from Packet ID, chain key, IV and AAD. | `0x9A3BCDEF` |
+| **Nonce**     | 4      | Chain PoW proof (every `Index`, same copy): grind target so `SHA256(List0 || Sender || Channel || Timestamp || Random || Nonce)` meets `d` (see 3.5b). Excluded from Packet ID, chain key, IV and AAD. | `0x9A3BCDEF` |
 | **FCS**       | 2      | CRC-16/CCITT-FALSE over header\|TTL\|List\|Sender\|Channel\|Timestamp\|Random\|Nonce\|chunk. | `0x29B1` |
-| **Chunk**     | 1-200  | `Index==0`: `MIC(8) + ciphertext head`; `Index>0`: ciphertext continuation (see 3.6-3.7). On-air order: `...|Random(4)|Nonce(4)|chunk|FCS(2)` — chunk precedes FCS. | See 3.7 |
+| **Chunk**     | 1-200  | `Index==0`: `MIC(8) + ciphertext head`; `Index>0`: ciphertext continuation (see 3.6-3.7). On-air order: `...|Random(4)|Nonce(4)|chunk|FCS(2)`, chunk precedes FCS. | See 3.7 |
 
 #### 3.1. TTL
 
@@ -167,7 +167,7 @@ Rules (normative):
 - At emission, `TTL == 0` is forbidden (see Send mechanism).
 - At reception, TTL is validated **before** deduplication lookup and **before** decrement (see Receive mechanism): `TTL == 0` or length inconsistent → drop, no cache insert, no ACK, no relay.
 - After validation, decrement by 1. If result is `0`, process locally but do not relay.
-- `Random` and `Chunk` (ciphertext stream slice) must be preserved bit-identical on relay; only `TTL` mutates (then FCS is recomputed). On any retransmission cycle (MISSING-driven or ECDRI-driven) the emitter re-grinds the chain `Nonce` upward (escalation, RELAY §1d) and rewrites the same fresh copy on every fragment — `Nonce` is excluded from the `Packet ID`, so dedup and `MISSING` recovery are unaffected. Otherwise strict deduplication breaks.
+- `Random` and `Chunk` (ciphertext stream slice) must be preserved bit-identical on relay; only `TTL` mutates (then FCS is recomputed). On any retransmission cycle (MISSING-driven or ECDRI-driven) the emitter re-grinds the chain `Nonce` upward (escalation, RELAY §1d) and rewrites the same fresh copy on every fragment. `Nonce` is excluded from the `Packet ID`, so dedup and `MISSING` recovery are unaffected. Otherwise strict deduplication breaks.
 
 #### 3.2. List (2 bytes, 16 bits)
 
@@ -208,55 +208,61 @@ The device that sent the packet (32-bit rotating ID).
 
 Unsigned 32-bit big-endian UNIX seconds sampled at chain creation, identical in every fragment. Roles: 
 
-- part of logical IV (§3.5) and PoW preimage — old-chain replay under a new epoch misses the PoW cache and fails AAD epoch binding
-- reassembly-map disambiguator (`Sender‖Channel‖Chain‖Timestamp`, Chain wraps every 16)
-- anti-replay hint (`|now−Timestamp|>600s` → suspect). It NEVER selects the decryption epoch alone (see §3.6).
+- Part of logical IV (§3.5) and PoW preimage, old-chain replay under a new epoch misses the PoW cache and fails AAD epoch binding
+- Reassembly-map disambiguator (`Sender || Channel || Chain || Timestamp`, Chain wraps every 16)
+- Anti-replay hint (`|now−Timestamp|>600s` → suspect). It NEVER selects the decryption epoch alone (see §3.6).
 
 ##### Chain exhaustion (rate limit)
 
-`Chain` is encoded on 4 bits (values 0–15; see `List` field, §3.2), so a device can emit at most **16 distinct chains per channel during one address period** (900 s). `Chain` resets to 0 whenever the address changes (`IDENTIFICATION.md` §3.3). Once the 16th chain is used, the device cannot start a new chain on that channel until the next address rotation — this is an **intentional per-channel rate limit**, not a bug. Beyond this limit, the device must wait for the next rotation or apply a backoff before re-emitting on the same channel.
+- `Chain` is encoded on 4 bits (values 0-15, see `List` field, §3.2), so a device can emit at most 16 distinct chains per channel during one address period (900 s). 
+- `Chain` resets to 0 whenever the address changes (`IDENTIFICATION.md` §3.3). Once the 16th chain is used, the device cannot start a new chain on that channel until the next address rotation. This is an intentional per-channel rate limit, not a bug. Beyond this limit, the device must wait for the next rotation or apply a backoff before re-emitting on the same channel.
 
 #### 3.5. Random (4 bytes) + IV (18 bytes logical, 12-byte CCM nonce derived)
 
-The chain nonce serves three purposes:  
+The chain `Random` serves three purposes:  
 
 - It makes the CCM IV unique per message (same plaintext + same key → different ciphertext).
-- It is identical across all fragments (the IV's `Index` is frozen to `0` inside the nonce — one message, one nonce, see 3.5.1).
-- It is frozen per chain and is not the PoW grind target (the dedicated `Nonce`, §3.5b, is). `Random` stays in the PoW preimage, the chain key and the IV; it is chosen at random, never ground, so re-grinding a proof never touches it.
+- It is identical across all fragments (the IV's `Index` is frozen to `0` inside the nonce : one message, one nonce, see 3.7).
+- It is frozen per chain and is not the PoW grind target (the dedicated `Nonce`, §3.6, is). `Random` stays in the PoW preimage, the chain key and the IV; it is chosen at random, never ground, so re-grinding a proof never touches it.
 
-#### 3.6. PoW Nonce (4 bytes, `Index==0` only, normative)
+#### 3.6. PoW Nonce (4 bytes, same copy on every fragment, normative)
 
-The `Nonce` is a dedicated 4-byte chain Proof-of-Work field carried **by every fragment** (the same copy on all `Index`, like `Timestamp`/`Random` — every fragment is self-sufficient, so the rescue gate, Relay §1d, can verify `PoW ≥ d_eff` on any fragment in deficit). Roles: 
+The `Nonce` is a dedicated 4-byte chain Proof-of-Work field carried **by every fragment** (the same copy on all `Index`, like `Timestamp`/`Random`, every fragment is self-sufficient, so the rescue gate, Relay §1d, can verify `PoW ≥ d_eff` on any fragment in deficit). Roles: 
 
-- it is the grind target. The sender searches a 4-byte value such that `SHA256(List0 ‖ Sender4 ‖ Channel4 ‖ Timestamp4 ‖ Random4 ‖ Nonce4)` starts with `d` zero bits (base `d = 12`, ~2^12 hashes; escalation up to `d = 20` on every retransmission cycle — MISSING-driven or ECDRI-driven — RELAY §1d). The proof is a proof *of the chain* (`List0` with `Index = 0` reconstructed), one grind covers all fragments
+- it is the grind target. The sender searches a 4-byte value such that `SHA256(List0 || Sender4 || Channel4 || Timestamp4 || Random4 || Nonce4)` starts with `d` zero bits (base `d = 12`, ~2^12 hashes; escalation up to `d = 20` on every retransmission cycle, MISSING-driven or ECDRI-driven, RELAY §1d). The proof is a proof *of the chain* (`List0` with `Index = 0` reconstructed), one grind covers all fragments
 - it is excluded from the `Packet ID`, the chain key, the IV/CCM nonce and the AAD. Re-grinding it never re-encrypts the message and never changes the packet identity, so an escalated retransmission stays a cache hit for dedup/`MISSING` and needs only an FCS recomputation per frame. 4 bytes (not 2) are required so `d = 20` (~2^20 trials) is always reachable in range. It is covered by each frame’s FCS (transport) but not by the MIC (end-to-end): the PoW is a relay-local resource gate, not an integrity field.
 
 ##### 3.7 IV layout (normative, per schema)
 
-On-air logical IV (18 B): `List (2) + Sender (4) + Channel (4) + Timestamp (4) + Random (4)`, in that order. `List` packs `Chain (4b) + Last (6b) + Index (6b)` (see 3.2) — `Chain` is the 4-bit per-address chain counter (stored as 1 byte in relay state), unrelated to the 32-bit `Channel` identifier; fragment-0 form (`Index = 0`) is used for every fragment — one message, one nonce, one tag. `Last` is computable before encryption: `stream = tag8 ‖ ciphertext` length is known from plaintext length.
+On-air logical IV (18 B): `List (2) + Sender (4) + Channel (4) + Timestamp (4) + Random (4)`, in that order. `List` packs `Chain (4b) + Last (6b) + Index (6b)` (see 3.2). `Chain` is the 4-bit per-address chain counter (stored as 1 byte in relay state), unrelated to the 32-bit `Channel` identifier; fragment-0 form (`Index = 0`) is used for every fragment, one message, one nonce, one tag. `Last` is computable before encryption: `stream = tag8 || ciphertext` length is known from plaintext length.
 
-AES-CCM needs a 12-byte nonce, so it is derived (normative): `nonce12 = SHA256(List0 ‖ Sender4 ‖ Channel4 ‖ Timestamp4 ‖ Random4)[0..11]` (see Confidentiality §1). The PoW `Nonce` (§3.5b) is deliberately absent from this derivation and from the AAD: re-grinding it must not change the ciphertext.  
+AES-CCM needs a 12-byte nonce, so it is derived (normative): `nonce12 = SHA256(List0 || Sender4 || Channel4 || Timestamp4 || Random4)[0..11]` (see Confidentiality §1). The PoW `Nonce` (§3.6) is deliberately absent from this derivation and from the AAD: re-grinding it must not change the ciphertext.  
   
-**Decision (normative):** the CCM IV is derived WITHOUT the PoW Nonce — the IV must remain stable across escalations (only the Nonce is re-ground); the Nonce protects admission, not confidentiality. An implementation that folds the Nonce into the IV derivation silently breaks retransmission (new ciphertext → de-facto new Packet ID → chaotic re-gate/dedup).
+**Decision (normative) :** the CCM IV is derived WITHOUT the PoW Nonce. The IV must remain stable across escalations (only the Nonce is re-ground); the Nonce protects admission, not confidentiality. An implementation that folds the Nonce into the IV derivation silently breaks retransmission (new ciphertext → de-facto new Packet ID → chaotic re-gate/dedup).
 
 #### 3.8. MIC (8 bytes, in Chunk[Index==0])
 
 The AES-CCM tag (8 B) is computed **once over the whole message with the packet-0 IV**, and transported **at the head of the `Index == 0` Chunk**:
 
-- `nonce12 = SHA256(List0 ‖ Sender4 ‖ Channel4 ‖ Timestamp4 ‖ Random4)[0..11]`; `aad = V.Protocol(2) ‖ V.BLE ‖ Typ.P.(0x03) ‖ Sender4 ‖ Channel4 ‖ List0 ‖ Timestamp4 ‖ Epoch_be8`; `plaintext = Flag(1) + data`.
-- `ciphertext, tag8 = AES-CCM-Encrypt(K_chan, nonce12, aad, plaintext)`; `stream = tag8 ‖ ciphertext` (tag-first).
-- `stream` cut into chunks of the padding class (32 or 200 — constant, last included; normative); chunk 0 = `tag8 + first ciphertext bytes` (always ≥ 9 bytes: MIC 8 + ≥1 ciphertext byte), chunks i>0 = continuation. Legacy unpadded `chunk_size ∈ [9..200]` with a short tail (each ≥ 1 byte) remains parse-compatible but is test-only (see §3.7).
-- Receiver: collect chunks 0..Last → `stream` → split `stream[0:8]`/`stream[8:]` → verify under accepted epochs. Invalid under all → reject whole chain, no `MISSING` re-requests for an unverifiable chain.  
+- `nonce12 = SHA256(List0 || Sender4 || Channel4 || Timestamp4 || Random4)[0..11]`
+- `aad = V.Protocol(2) || V.BLE || Typ.P.(0x03) || Sender4 || Channel4 || List0 || Timestamp4 || Epoch_be8`
+- `plaintext = Flag(1) + data`.
+- `ciphertext, tag8 = AES-CCM-Encrypt(K_chan, nonce12, aad, plaintext)`
+- `stream = tag8 || ciphertext` (tag-first).
+  
+> `stream` cut into chunks of the padding class (32 or 200, constant, last included; normative); chunk 0 = `tag8 + first ciphertext bytes` _(always ≥ 12 bytes: MIC 8 + Flag 1 + Length 2 + ≥1 ciphertext byte)_, chunks i>0 = continuation. Legacy unpadded `chunk0_size ∈ [12..200]`, `chunkN_size ∈ [1..200]`, with a short tail (each ≥ 1 byte) remains parse-compatible but is test-only (see §3.7).
+  
+> Receiver: collect chunks 0..Last → `stream` → split `stream[0:8]`/`stream[8:]` → verify under accepted epochs. Invalid under all → reject whole chain, no `MISSING` re-requests for an unverifiable chain.  
   
 > **Why index 0:** the MIC is bound to the packet-0 IV, so `nonce ↔ tag` are co-located; loss of fragment 0 is detected immediately as `MISSING Index 0` (highest re-request priority, see Receive §1). Forgery odds unchanged (64-bit).
 
-#### 3.9. Chunk of encrypted stream (padding class 32 or 200 bytes)
+#### 3.9. Chunk of encrypted stream (12+ bytes)
 
 | Field           | Bytes | Description                                      | Example            |
 | --------------- | ----- | ------------------------------------------------ | ------------------ |
 | **MIC**         | 8     | AES-CCM 64-bit tag of the whole message (bound to the packet-0 IV); travels tag-first at the head of Chunk[`Index==0`] (§3.6). |                    |
 | **Flag**        | 1     | Compressed = `0000 0001`. Padded 200 bytes = `0000 0010`    | `0000 0011` |
-| **Lenght**      | 2     | Real lenght of the data (N).                     |                    |
+| **Length**      | 2     | Real length of the data (N).                     |                    |
 | **Data**        | N     |                                                  |                    |
 
 ##### 1-byte Flag
@@ -264,11 +270,11 @@ The AES-CCM tag (8 B) is computed **once over the whole message with the packet-
 - bit0 = `Compressed?` (`0x00` = no compression for payload ≤ 50 bytes, `0x01` = Deflate/zlib)
 - bit1 = `Padded?` (`0x00` = padding 32 bytes, `0x02` = padding 200 bytes, see below). It sits in the plaintext before encryption, hence covered by the MIC.  
 
-##### Padding (normative, SECURITY §3.1 — uniform observable size)
+##### Padding (normative, SECURITY §3.1)
 
 - **Two constant classes only, short = 32 B, long = 200 B**: chosen after compression on the USEFUL size: `len(compressed) ≤ 200` → short, else long. The threshold is on the data, NOT on the padded stream, so a 190..200 B message stays short: 7×32 = 224 B instead of 2×200 = 400 B. Every chunk of the message, including the last, is exactly the class size on air (no short tail): the plaintext is zero-padded so `stream_len` (MIC included) is an exact multiple of the class.
 - **The real length is never observable**: it travels as `real_len_be16` (length of the data after compression when bit0 is set) INSIDE the encrypted, MIC-covered plaintext of fragment 0; the receiver trims only AFTER successful MIC verification. Padding bytes are zeros chosen by the sender (no filler entropy to leak).
-- **Why two sizes**: constant chunk size removes the payload-length fingerprint (each fragment size was a re-linking vector); two classes — not three or four — bound the remaining granularity to a coarse "chat vs control" split, since every added size recreates a fingerprinting axis.
+- **Why two sizes**: constant chunk size removes the payload-length fingerprint (each fragment size was a re-linking vector). Two classes bound the remaining granularity to a coarse "chat vs control" split, since every added size recreates a fingerprinting axis.
 
 **Compression algorithms**  
   

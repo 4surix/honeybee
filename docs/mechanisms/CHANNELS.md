@@ -34,9 +34,9 @@ Service order only, never a bypass of any admission control:
 
 | Priority | Channel types | Aliases |
 | -------- | ------------- | ------- |
-| `0` | **Emergency** | — |
+| `0` | **Emergency** | - |
 | `1` | **Public**, **Private** | `Global` |
-| `2` | **Team** | — |
+| `2` | **Team** | - |
 | `3` | **Testing**, **Reserved** | `Technical` |
 
 Priority `0` is the highest service class and **is served first** (lower index first); within a class, packets are served FIFO. `MISSING`/ECDRI retransmits first (reliability core), still paying the normal channel budget (guards in Relay §1d).

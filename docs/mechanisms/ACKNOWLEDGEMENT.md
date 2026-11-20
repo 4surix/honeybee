@@ -3,14 +3,14 @@
   
 > [Acknowledgement (data networks) - Wikipedia](https://en.wikipedia.org/wiki/Acknowledgement_(data_networks))
 
-### Functioning
+### 1. Functioning
 
 #### Lost ACK
 `Messages (0x03)` are sent over a GATT session to the connected peer. If the `ACK Succeeded` packet is lost, the sender does not know the chain arrived and will retransmit it via ECDRI. This is benign: the receiving device identifies the retransmitted chain by its `Packet ID` and answers `ACK Duplicated (0x0F)` (or `ACK Succeeded (0x1F)` again), so a lost ACK costs one redundant chain transmission, never a corrupted state. The ACK serves to say, _"Yes, I received it!"_.
 
 #### Per-hop delivery confirmation
 
-`ACK Succeeded (0x1F)` is a **per-hop** signal: every device holding **all fragments** (`Index 0..Last`) of a chain answers `Succeeded` to the direct GATT peer that sent it — **key or no key** (chain completeness is tracked on the `chain_key` index of the relay cache, RELAY §1; it is key-independent knowledge, not a plaintext property). A device that already holds the complete chain and re-hears it answers the rate-limited `ACK Duplicated (0x0F)` instead — which the emitter counts **exactly like a `Succeeded`**: the delivery contract ("the peer holds the chain") is met either way. Both are 1-hop, terminal, never relayed (RELAY §4).
+`ACK Succeeded (0x1F)` is a **per-hop** signal: every device holding **all fragments** (`Index 0..Last`) of a chain answers `Succeeded` to the direct GATT peer that sent it, **key or no key** (chain completeness is tracked on the `chain_key` index of the relay cache, RELAY §1; it is key-independent knowledge, not a plaintext property). A device that already holds the complete chain and re-hears it answers the rate-limited `ACK Duplicated (0x0F)` instead, which the emitter counts **exactly like a `Succeeded`**: the delivery contract ("the peer holds the chain") is met either way. Both are 1-hop, terminal, never relayed (RELAY §4).
 
 > This is what closes the per-node measurement loop (`NETWORK.md` §2.E, $S_{fiab}$): each hop of a relayed chain (Secondary→Primary upload, Primary→Primary mesh, Primary→Secondary download) is confirmed by **its own direct peer**, regardless of the intermediate nodes' channel membership. A keyed-only completion ACK would also be a membership side-channel (an observer could probe whether a relay belongs to the channel by watching which hops answer); the key-independent rule removes it.
 
@@ -18,9 +18,9 @@
 
 > [Automatic repeat request - Wikipedia](https://en.wikipedia.org/wiki/Automatic_repeat_request)
 
-If we only wait for an `ACK MISSING` packet before resending fragments, it works only when the connected device received *part* of the chain (it knows what is missing and asks for it). If the chain — or all of its fragments — never reaches the connected device, no `MISSING` is ever sent back and nothing would trigger a resend. ECDRI covers this case: if, after a fixed **DELAY = 1 s** (`Master::params` knob) following the last transmitted fragment of the chain, and no `ACK Successed` has been received from the connected device, then the whole chain is retransmitted in full (all Indexes, chain Nonce re-grounded per SEND, d = min(20, prev+4) from the second silent cycle, capped at 20) and another 1 s DELAY is waited. If after three retransmissions (four emissions total: initial + 3 retries, converging 12 → 12 → 16 → 20) no `Succeeded`/`Duplicated` was received, the process is abandoned (delivery failed).
+If we only wait for an `ACK MISSING` packet before resending fragments, it works only when the connected device received *part* of the chain (it knows what is missing and asks for it). If the chain, or all of its fragments, never reaches the connected device, no `MISSING` is ever sent back and nothing would trigger a resend. ECDRI covers this case: if, after a fixed **DELAY = 1 s** (`Master::params` knob) following the last transmitted fragment of the chain, and no `ACK Succeeded` has been received from the connected device, then the whole chain is retransmitted in full (all Indexes, chain Nonce re-grounded per SEND, d = min(20, prev+4) from the second silent cycle, capped at 20) and another 1 s DELAY is waited. If after three retransmissions (four emissions total: initial + 3 retries, converging 12 → 12 → 16 → 20) no `Succeeded`/`Duplicated` was received, the process is abandoned (delivery failed).
 
-**Why a fixed 1 s (GATT rationale)**: over a GATT session (connection interval 15–30 ms, RELAY §5.2/§6.1), a chain reaches the connected peer in ~N × 30 ms and the in-session `ACK Succeeded` — High Priority, bypassing the Token Bucket (SEND §2.1) — returns in ~1–3 connection intervals (~100–300 ms). A fixed 1 s therefore carries a ×5–10 margin over the typical ACK return. The timer is measured **from the last transmitted fragment**, so Token-Bucket throttling (4 frags/s, SEND §2.1) is already excluded from the wait window. The DELAY also stays **below the 5 s inactivity close** of the rendezvous session (RELAY §6.3), so a retransmission can happen in-session instead of being pushed to the next rendezvous. The former `chain size × 1 s` was an Advertising-era allowance for scan windows and per-hop relay jitter; neither applies to a connected, ordered, link-layer-ACKed bearer.
+**Why a fixed 1 s (GATT rationale)**: over a GATT session (connection interval 15–30 ms, RELAY §5.2/§6.1), a chain reaches the connected peer in ~N × 30 ms and the in-session `ACK Succeeded`, High Priority, bypassing the Token Bucket (SEND §2.1), returns in ~1–3 connection intervals (~100–300 ms). A fixed 1 s therefore carries a ×5–10 margin over the typical ACK return. The timer is measured **from the last transmitted fragment**, so Token-Bucket throttling (4 frags/s, SEND §2.1) is already excluded from the wait window. The DELAY also stays **below the 5 s inactivity close** of the rendezvous session (RELAY §6.3), so a retransmission can happen in-session instead of being pushed to the next rendezvous. The former `chain size × 1 s` was an Advertising-era allowance for scan windows and per-hop relay jitter; neither applies to a connected, ordered, link-layer-ACKed bearer.
 
 ```mermaid
 %% Diagram of ECDRI Logic (Ensure the Connected Device Received It)
@@ -85,7 +85,7 @@ flowchart TD
 #### Priority
 ACKs are processed with priority by the network.
 
-### Types
+### 2. Types
 
 > Missing is a [Selective repeat ARQ - Wikipedia](https://en.wikipedia.org/wiki/Selective_Repeat_ARQ)
 
@@ -119,7 +119,7 @@ If we are missing a packet, we must send an ACK packet with the type `MISSING` a
 When a device receives a `MISSING`, it checks if it has the packet :
 
 - If it has it, it does not relay the `MISSING` and re-emits the fragment(s) itself in-session, with chain identity preserved (List/Sender/Channel/Timestamp/Random/chunk unchanged) and a re-ground chain `Nonce` per the escalation curve (MISSING-driven: `d = min(20, prev+4)` from the first cycle, FCS recomputed per frame).
-- If it doesn't have it, it does nothing: `MISSING` is 1-hop and never relayed (Relay §4). The requester converges via ECDRI (full-chain retransmission with escalation) or via its serving Primary's mesh path. _(This scenario would be rare. A chain is only relayed once the primary device has received all of its packets. Furthermore, since this primary device is connected to the device via GATT, it only receives packets from that specific device. This would imply that the missing packet is no longer in the history — meaning the device to which it is connected has sent enough subsequent packets to push the requested packet out of the history.)_
+- If it doesn't have it, it does nothing: `MISSING` is 1-hop and never relayed (Relay §4). The requester converges via ECDRI (full-chain retransmission with escalation) or via its serving Primary's mesh path. _(This scenario would be rare. A chain is only relayed once the primary device has received all of its packets. Furthermore, since this primary device is connected to the device via GATT, it only receives packets from that specific device. This would imply that the missing packet is no longer in the history, meaning the device to which it is connected has sent enough subsequent packets to push the requested packet out of the history.)_
 
 ```mermaid
 sequenceDiagram

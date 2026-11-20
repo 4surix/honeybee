@@ -1,12 +1,11 @@
-# ============================================================
-# GitHub Actions — generate & deploy HoneyBee documentation
+# GitHub Actions - generate & deploy HoneyBee documentation
 # Source: https://github.com/4surix/honeybee
 #
 # Runs on every push to `main` (or manual dispatch):
 #   1. install docs deps (mkdocs, mkdocs-material, pymdown-extensions)
 #   2. mkdocs build  -> outputs to `site/`
 #   3. deploy to GitHub Pages (github-pages provider)
-# ============================================================
+
 name: Docs
 
 on:
